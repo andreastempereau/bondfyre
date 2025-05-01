@@ -1,11 +1,11 @@
-import express from 'express';
-import { auth } from '../middleware/auth';
-import { 
-  getMatches, 
-  getMatch, 
-  createMatch, 
-  updateMatchStatus 
-} from '../controllers/matchController';
+import express from "express";
+import { auth } from "../middleware/auth";
+import {
+  getMatches,
+  getMatch,
+  createMatch,
+  updateMatchStatus,
+} from "../controllers";
 
 const router = express.Router();
 
@@ -13,15 +13,15 @@ const router = express.Router();
 router.use(auth);
 
 // Get all matches for the authenticated user
-router.get('/', getMatches);
+router.get("/", getMatches);
 
 // Get a specific match
-router.get('/:id', getMatch);
+router.get("/:id", getMatch);
 
 // Create a new match
-router.post('/', createMatch);
+router.post("/", createMatch);
 
 // Update match status
-router.put('/:id/status', updateMatchStatus);
+router.put("/:id/status", updateMatchStatus);
 
-export default router; 
+export default router;

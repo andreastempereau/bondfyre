@@ -1,140 +1,197 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   StyleSheet,
   View,
   Text,
-  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  SafeAreaView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
-} from 'react-native';
-import { router } from 'expo-router';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { API_URL } from '../config';
+} from "react-native";
+import { router } from "expo-router";
+import { useAuth } from "../contexts/AuthContext";
+import { StatusBar } from "expo-status-bar";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { FormInput, FormButton, signInSchema } from "../components/forms";
+
+// Define the form data type to match the schema
+type SignInFormData = {
+  email: string;
+  password: string;
+};
 
 export default function SignInScreen() {
+  const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [generalError, setGeneralError] = useState<string | null>(null);
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignInFormData>({
+    resolver: yupResolver(signInSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    mode: "onBlur",
   });
 
-  const handleSignIn = async () => {
-    if (!formData.email || !formData.password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
+  const onSubmit = async (data: SignInFormData) => {
+    setGeneralError(null);
     setLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/auth/signin`, formData);
-
-      if (response.data.token) {
-        // Store the token
-        await AsyncStorage.setItem('userToken', response.data.token);
-        // Navigate to the main app
-        router.replace('/(tabs)' as any);
-      }
+      await signIn(data.email, data.password);
+      // No need to navigate here as the useEffect in AuthContext will handle navigation
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Invalid email or password');
+      setGeneralError(error.message || "Invalid email or password");
+      Alert.alert(
+        "Sign In Failed",
+        error.message || "Invalid email or password. Please try again."
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.formContainer}>
-        <Text style={styles.title}>Welcome Back</Text>
-        
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={formData.email}
-          onChangeText={(text) => setFormData({ ...formData, email: text })}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar style="dark" />
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoText}>bondfyre</Text>
+          </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={formData.password}
-          onChangeText={(text) => setFormData({ ...formData, password: text })}
-          secureTextEntry
-        />
+          <View style={styles.formContainer}>
+            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.subtitle}>Sign in to continue</Text>
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleSignIn}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <Text style={styles.buttonText}>Sign In</Text>
-          )}
-        </TouchableOpacity>
+            {generalError && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{generalError}</Text>
+              </View>
+            )}
 
-        <TouchableOpacity
-          style={styles.linkButton}
-          onPress={() => router.push('/auth/signup' as any)}
-        >
-          <Text style={styles.linkText}>Don't have an account? Sign Up</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+            <FormInput<SignInFormData>
+              control={control}
+              name="email"
+              label="Email"
+              placeholder="Your email address"
+              icon="email"
+              keyboardType="email-address"
+              error={errors.email}
+              autoCapitalize="none"
+            />
+
+            <FormInput<SignInFormData>
+              control={control}
+              name="password"
+              label="Password"
+              placeholder="Your password"
+              icon="lock"
+              secureTextEntry={!passwordVisible}
+              error={errors.password}
+              showPasswordToggle
+              onTogglePassword={() => setPasswordVisible(!passwordVisible)}
+              isPasswordVisible={passwordVisible}
+            />
+
+            <FormButton
+              title="Sign In"
+              onPress={handleSubmit(onSubmit)}
+              loading={loading}
+              style={styles.button}
+            />
+
+            <View style={styles.linkContainer}>
+              <TouchableOpacity onPress={() => router.push("/auth/signup")}>
+                <Text style={styles.linkText}>
+                  Don't have an account?{" "}
+                  <Text style={styles.linkHighlight}>Sign Up</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
+    backgroundColor: "#fff",
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: 20,
+  },
+  logoContainer: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  logoText: {
+    fontSize: 42,
+    fontWeight: "bold",
+    color: "#FF6B6B",
+    textAlign: "center",
   },
   formContainer: {
-    padding: 20,
+    width: "100%",
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
-    color: '#333',
+    fontWeight: "bold",
+    marginBottom: 8,
+    textAlign: "center",
+    color: "#333",
   },
-  input: {
-    backgroundColor: 'white',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 15,
+  subtitle: {
     fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#ddd',
+    color: "#666",
+    marginBottom: 24,
+    textAlign: "center",
   },
   button: {
-    backgroundColor: '#4CAF50',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
     marginTop: 10,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  errorContainer: {
+    backgroundColor: "#FFEEEE",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
   },
-  buttonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+  errorText: {
+    color: "#FF3B30",
+    textAlign: "center",
   },
-  linkButton: {
-    marginTop: 20,
-    alignItems: 'center',
+  linkContainer: {
+    marginTop: 24,
+    alignItems: "center",
   },
   linkText: {
-    color: '#4CAF50',
-    fontSize: 16,
+    fontSize: 14,
+    color: "#666",
   },
-}); 
+  linkHighlight: {
+    color: "#FF6B6B",
+    fontWeight: "bold",
+  },
+});

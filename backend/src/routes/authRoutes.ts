@@ -1,10 +1,19 @@
-import express from 'express';
-import { register, login, resetPassword } from '../controllers/authController';
+import express from "express";
+import { register, login, resetPassword } from "../controllers";
 
 const router = express.Router();
 
-router.post('/register', register);
-router.post('/login', login);
-router.post('/reset-password', resetPassword);
+// Root path handler for /api/auth
+router.get("/", (_req, res) => {
+  res.status(200).json({ message: "Auth API is working" });
+});
 
-export default router; 
+router.post("/", (_req, res) => {
+  res.status(200).json({ message: "Auth API POST endpoint" });
+});
+
+router.post("/register", register);
+router.post("/login", login);
+router.post("/reset-password", resetPassword);
+
+export default router;

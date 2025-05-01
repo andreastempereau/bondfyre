@@ -1,10 +1,6 @@
-import express from 'express';
-import { auth } from '../middleware/auth';
-import { 
-  getMessages, 
-  sendMessage, 
-  markMessagesAsRead 
-} from '../controllers/messageController';
+import express from "express";
+import { auth } from "../middleware/auth";
+import { getMessages, sendMessage, markMessagesAsRead } from "../controllers";
 
 const router = express.Router();
 
@@ -12,12 +8,12 @@ const router = express.Router();
 router.use(auth);
 
 // Get all messages for a match
-router.get('/match/:matchId', getMessages);
+router.get("/match/:matchId", getMessages);
 
 // Send a new message
-router.post('/match/:matchId', sendMessage);
+router.post("/match/:matchId", sendMessage);
 
 // Mark messages as read
-router.put('/match/:matchId/read', markMessagesAsRead);
+router.put("/match/:matchId/read", markMessagesAsRead);
 
-export default router; 
+export default router;

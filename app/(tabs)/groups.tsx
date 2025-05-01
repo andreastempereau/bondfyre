@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useAuth } from "../contexts/AuthContext";
 import { GroupModal, GroupSettingsModal } from "@/app/components";
+import { API_URL } from "../config";
 
 interface Group {
   _id: string;
@@ -43,7 +44,7 @@ export default function GroupsScreen() {
   const fetchGroups = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:3000/api/groups", {
+      const response = await fetch(`${API_URL}/api/groups`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -65,15 +66,12 @@ export default function GroupsScreen() {
 
   const handleLeaveGroup = async (groupId: string) => {
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/groups/${groupId}/leave`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API_URL}/api/groups/${groupId}/leave`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error("Failed to leave group");

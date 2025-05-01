@@ -2,12 +2,14 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
-import authRoutes from "./routes/authRoutes";
-import userRoutes from "./routes/userRoutes";
-import groupRoutes from "./routes/groupRoutes";
-import matchRoutes from "./routes/matchRoutes";
-import messageRoutes from "./routes/messageRoutes";
-import swipeRoutes from "./routes/swipeRoutes";
+import {
+  authRoutes,
+  userRoutes,
+  groupRoutes,
+  matchRoutes,
+  messageRoutes,
+  swipeRoutes,
+} from "./routes";
 
 // Load environment variables
 dotenv.config();
@@ -56,6 +58,12 @@ app.get("/health", (_req, res) => {
 
 // Error handling for unsupported routes
 app.use((_req, res, _next) => {
+  console.log("Route not found");
+  // Log the request method and path
+  console.log(
+    `${new Date().toISOString()} - Route not found: ${_req.method} ${_req.path}`
+  );
+
   res.status(404).json({ message: "Route not found" });
 });
 

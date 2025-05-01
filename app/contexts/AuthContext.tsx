@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiService } from "../services/apiService";
 import { Config } from "../config/environment";
 import { Alert } from "react-native";
+import { router } from "expo-router";
 
 export interface Profile {
   bio?: string;
@@ -45,6 +46,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loadStoredData();
   }, []);
 
+  // Add effect to navigate based on auth state
+  useEffect(() => {
+    if (!loading) {
+      if (token && user) {
+        // User is authenticated, navigate to main app if not already there
+        router.replace("/(tabs)");
+      } else {
+        // User is not authenticated
+        router.replace("/auth");
+      }
+    }
+  }, [token, user, loading]);
+
   const loadStoredData = async () => {
     try {
       const storedToken = await AsyncStorage.getItem(
@@ -57,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+        console.log("Auth state loaded from storage:", !!storedToken);
       }
     } catch (error) {
       console.error("Error loading stored data:", error);
@@ -75,6 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setToken(authToken);
       setUser(userData);
+      console.log("Auth data saved successfully");
     } catch (error) {
       console.error("Failed to save auth data:", error);
       Alert.alert("Error", "Failed to save login information");
@@ -83,11 +99,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const data = await apiService.post<{ token: string; user: User }>(
+      console.log("Attempting to sign in with email:", email);
+      const response = await apiService.post<{ token: string; user: User }>(
         "/auth/login",
         { email, password }
       );
-      await saveAuthData(data.token, data.user);
+
+      console.log("Sign in successful, saving auth data");
+      await saveAuthData(response.token, response.user);
     } catch (error: any) {
       console.error("Login error:", error);
       throw new Error(error.message || "Failed to sign in");
@@ -101,7 +120,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     profile: Profile
   ) => {
     try {
-      const data = await apiService.post<{ token: string; user: User }>(
+      console.log("Attempting to register with email:", email);
+      const response = await apiService.post<{ token: string; user: User }>(
         "/auth/register",
         {
           email,
@@ -111,7 +131,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       );
 
-      await saveAuthData(data.token, data.user);
+      console.log("Registration successful, saving auth data");
+      await saveAuthData(response.token, response.user);
     } catch (error: any) {
       console.error("Registration error:", error);
       throw new Error(error.message || "Failed to sign up");
@@ -125,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       const updatedUser = await apiService.put<User>(
-        `/users/${user._id}`,
+        `/users/profile`,
         userData
       );
 

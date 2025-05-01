@@ -1,10 +1,6 @@
-import express from 'express';
-import { auth } from '../middleware/auth';
-import { 
-  createSwipe, 
-  getSwipes, 
-  getPotentialMatches 
-} from '../controllers/swipeController';
+import express from "express";
+import { auth } from "../middleware/auth";
+import { createSwipe, getSwipes, getPotentialMatches } from "../controllers";
 
 const router = express.Router();
 
@@ -12,12 +8,12 @@ const router = express.Router();
 router.use(auth);
 
 // Create a new swipe
-router.post('/', createSwipe);
+router.post("/", createSwipe);
 
 // Get all swipes for the authenticated user
-router.get('/', getSwipes);
+router.get("/", getSwipes);
 
 // Get potential matches for the authenticated user
-router.get('/potential', getPotentialMatches);
+router.get("/potential", getPotentialMatches);
 
-export default router; 
+export default router;
