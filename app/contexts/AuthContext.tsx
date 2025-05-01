@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { apiService } from "../services/apiService";
+import { Config } from "../config/environment";
+import { Alert } from "react-native";
 
-interface User {
-  _id: string;
-  email: string;
-  name: string;
+export interface Profile {
   bio?: string;
   age?: number;
   gender?: string;
@@ -12,11 +12,24 @@ interface User {
   photos?: string[];
 }
 
+export interface User {
+  _id: string;
+  email: string;
+  name: string;
+  profile?: Profile;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, profile: any) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    name: string,
+    profile: Profile
+  ) => Promise<void>;
+  updateUser: (userData: Partial<User>) => Promise<void>;
   signOut: () => Promise<void>;
   loading: boolean;
 }
@@ -34,88 +47,119 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadStoredData = async () => {
     try {
-      const storedToken = await AsyncStorage.getItem('token');
-      const storedUser = await AsyncStorage.getItem('user');
-      
+      const storedToken = await AsyncStorage.getItem(
+        Config.STORAGE_KEYS.AUTH_TOKEN
+      );
+      const storedUser = await AsyncStorage.getItem(
+        Config.STORAGE_KEYS.USER_DATA
+      );
+
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
       }
     } catch (error) {
-      console.error('Error loading stored data:', error);
+      console.error("Error loading stored data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const saveAuthData = async (authToken: string, userData: User) => {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      await AsyncStorage.setItem(Config.STORAGE_KEYS.AUTH_TOKEN, authToken);
+      await AsyncStorage.setItem(
+        Config.STORAGE_KEYS.USER_DATA,
+        JSON.stringify(userData)
+      );
 
-      if (!response.ok) {
-        throw new Error('Login failed');
-      }
-
-      const data = await response.json();
-      
-      await AsyncStorage.setItem('token', data.token);
-      await AsyncStorage.setItem('user', JSON.stringify(data.user));
-      
-      setToken(data.token);
-      setUser(data.user);
+      setToken(authToken);
+      setUser(userData);
     } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+      console.error("Failed to save auth data:", error);
+      Alert.alert("Error", "Failed to save login information");
     }
   };
 
-  const signUp = async (email: string, password: string, name: string, profile: any) => {
+  const signIn = async (email: string, password: string) => {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, name, profile }),
-      });
+      const data = await apiService.post<{ token: string; user: User }>(
+        "/auth/login",
+        { email, password }
+      );
+      await saveAuthData(data.token, data.user);
+    } catch (error: any) {
+      console.error("Login error:", error);
+      throw new Error(error.message || "Failed to sign in");
+    }
+  };
 
-      if (!response.ok) {
-        throw new Error('Registration failed');
+  const signUp = async (
+    email: string,
+    password: string,
+    name: string,
+    profile: Profile
+  ) => {
+    try {
+      const data = await apiService.post<{ token: string; user: User }>(
+        "/auth/register",
+        {
+          email,
+          password,
+          name,
+          profile,
+        }
+      );
+
+      await saveAuthData(data.token, data.user);
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      throw new Error(error.message || "Failed to sign up");
+    }
+  };
+
+  const updateUser = async (userData: Partial<User>) => {
+    try {
+      if (!user?._id) {
+        throw new Error("Not authenticated");
       }
 
-      const data = await response.json();
-      
-      await AsyncStorage.setItem('token', data.token);
-      await AsyncStorage.setItem('user', JSON.stringify(data.user));
-      
-      setToken(data.token);
-      setUser(data.user);
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
+      const updatedUser = await apiService.put<User>(
+        `/users/${user._id}`,
+        userData
+      );
+
+      // Update local storage with merged user data
+      const newUserData = { ...user, ...updatedUser };
+      await AsyncStorage.setItem(
+        Config.STORAGE_KEYS.USER_DATA,
+        JSON.stringify(newUserData)
+      );
+      setUser(newUserData);
+    } catch (error: any) {
+      console.error("Update user error:", error);
+      throw new Error(error.message || "Failed to update user data");
     }
   };
 
   const signOut = async () => {
     try {
-      await AsyncStorage.removeItem('token');
-      await AsyncStorage.removeItem('user');
+      await AsyncStorage.multiRemove([
+        Config.STORAGE_KEYS.AUTH_TOKEN,
+        Config.STORAGE_KEYS.USER_DATA,
+      ]);
       setToken(null);
       setUser(null);
     } catch (error) {
-      console.error('Sign out error:', error);
-      throw error;
+      console.error("Sign out error:", error);
+      throw new Error("Failed to sign out");
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, signIn, signUp, signOut, loading }}>
+    <AuthContext.Provider
+      value={{ user, token, signIn, signUp, updateUser, signOut, loading }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -124,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-} 
+}

@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
-import { useAuth } from '../contexts/AuthContext';
-import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import GroupModal from '../components/GroupModal';
-import GroupSettingsModal from '../components/GroupSettingsModal';
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useAuth } from "../contexts/AuthContext";
+import { GroupModal, GroupSettingsModal } from "@/app/components";
 
 interface Group {
   _id: string;
@@ -37,21 +43,21 @@ export default function GroupsScreen() {
   const fetchGroups = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:3000/api/groups', {
+      const response = await fetch("http://localhost:3000/api/groups", {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch groups');
+        throw new Error("Failed to fetch groups");
       }
 
       const data = await response.json();
       setGroups(data);
     } catch (error) {
-      console.error('Error fetching groups:', error);
-      setError('Failed to load groups');
+      console.error("Error fetching groups:", error);
+      setError("Failed to load groups");
     } finally {
       setLoading(false);
     }
@@ -59,29 +65,34 @@ export default function GroupsScreen() {
 
   const handleLeaveGroup = async (groupId: string) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/groups/${groupId}/leave`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `http://localhost:3000/api/groups/${groupId}/leave`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to leave group');
+        throw new Error("Failed to leave group");
       }
 
-      setGroups(groups.filter(group => group._id !== groupId));
+      setGroups(groups.filter((group) => group._id !== groupId));
     } catch (error) {
-      console.error('Error leaving group:', error);
-      Alert.alert('Error', 'Failed to leave group');
+      console.error("Error leaving group:", error);
+      Alert.alert("Error", "Failed to leave group");
     }
   };
 
   const handleGroupUpdate = (updates: Partial<Group>) => {
     if (selectedGroup) {
-      setGroups(groups.map(group => 
-        group._id === selectedGroup._id ? { ...group, ...updates } : group
-      ));
+      setGroups(
+        groups.map((group) =>
+          group._id === selectedGroup._id ? { ...group, ...updates } : group
+        )
+      );
     }
   };
 
@@ -102,7 +113,8 @@ export default function GroupsScreen() {
       <Text style={styles.groupDescription}>{item.description}</Text>
       <View style={styles.groupFooter}>
         <Text style={styles.memberCount}>
-          {item.members.length} {item.members.length === 1 ? 'member' : 'members'}
+          {item.members.length}{" "}
+          {item.members.length === 1 ? "member" : "members"}
         </Text>
         <TouchableOpacity
           style={styles.leaveButton}
@@ -126,10 +138,7 @@ export default function GroupsScreen() {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={fetchGroups}
-        >
+        <TouchableOpacity style={styles.retryButton} onPress={fetchGroups}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -186,17 +195,17 @@ export default function GroupsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: "#f5f5f5",
   },
   listContainer: {
     padding: 16,
   },
   groupCard: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -206,52 +215,52 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   groupHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
   groupName: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
   },
   groupDescription: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
     marginBottom: 12,
   },
   groupFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   memberCount: {
     fontSize: 14,
-    color: '#666',
+    color: "#666",
   },
   leaveButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#FF3B30',
+    backgroundColor: "#FF3B30",
     borderRadius: 6,
   },
   leaveButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   addButton: {
-    position: 'absolute',
+    position: "absolute",
     right: 24,
     bottom: 24,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    backgroundColor: "#007AFF",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 2,
@@ -262,36 +271,36 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 24,
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: "600",
+    color: "#333",
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
   },
   errorText: {
     fontSize: 16,
-    color: '#FF3B30',
-    textAlign: 'center',
+    color: "#FF3B30",
+    textAlign: "center",
     marginBottom: 16,
   },
   retryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   retryButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
-}); 
+});
