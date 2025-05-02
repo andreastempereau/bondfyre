@@ -3,6 +3,7 @@ import {
   Text as RNText,
   TextProps as RNTextProps,
   StyleSheet,
+  TextStyle,
 } from "react-native";
 import { theme } from "../../theme";
 import { useColorScheme } from "react-native";
@@ -69,16 +70,31 @@ const Text: React.FC<TextProps> = ({
       ? { color }
       : { color: theme.palette.text.primary[colorScheme as "light" | "dark"] },
     align ? { textAlign: align } : null,
-    weight ? { fontWeight: weight } : null,
-    italic ? { fontStyle: "italic" } : null,
-    underline ? { textDecorationLine: "underline" } : null,
-    lineThrough ? { textDecorationLine: "line-through" } : null,
-    underline && lineThrough
-      ? { textDecorationLine: "underline line-through" }
+    weight ? { fontWeight: weight as TextStyle["fontWeight"] } : null,
+    italic ? { fontStyle: "italic" as TextStyle["fontStyle"] } : null,
+    underline
+      ? { textDecorationLine: "underline" as TextStyle["textDecorationLine"] }
       : null,
-    uppercase ? { textTransform: "uppercase" } : null,
-    lowercase ? { textTransform: "lowercase" } : null,
-    capitalize ? { textTransform: "capitalize" } : null,
+    lineThrough
+      ? {
+          textDecorationLine: "line-through" as TextStyle["textDecorationLine"],
+        }
+      : null,
+    underline && lineThrough
+      ? {
+          textDecorationLine:
+            "underline line-through" as TextStyle["textDecorationLine"],
+        }
+      : null,
+    uppercase
+      ? { textTransform: "uppercase" as TextStyle["textTransform"] }
+      : null,
+    lowercase
+      ? { textTransform: "lowercase" as TextStyle["textTransform"] }
+      : null,
+    capitalize
+      ? { textTransform: "capitalize" as TextStyle["textTransform"] }
+      : null,
     style,
   ].filter(Boolean);
 
@@ -90,18 +106,18 @@ const Text: React.FC<TextProps> = ({
 };
 
 const styles = StyleSheet.create({
-  h1: theme.typography.h1,
-  h2: theme.typography.h2,
-  h3: theme.typography.h3,
-  h4: theme.typography.h4,
-  h5: theme.typography.h5,
-  subtitle1: theme.typography.subtitle1,
-  subtitle2: theme.typography.subtitle2,
-  body1: theme.typography.body1,
-  body2: theme.typography.body2,
-  button: theme.typography.button,
-  caption: theme.typography.caption,
-  overline: theme.typography.overline,
+  h1: theme.typography.h1 as TextStyle,
+  h2: theme.typography.h2 as TextStyle,
+  h3: theme.typography.h3 as TextStyle,
+  h4: theme.typography.h4 as TextStyle,
+  h5: theme.typography.h5 as TextStyle,
+  subtitle1: theme.typography.subtitle1 as TextStyle,
+  subtitle2: theme.typography.subtitle2 as TextStyle,
+  body1: theme.typography.body1 as TextStyle,
+  body2: theme.typography.body2 as TextStyle,
+  button: theme.typography.button as TextStyle,
+  caption: theme.typography.caption as TextStyle,
+  overline: theme.typography.overline as TextStyle,
 });
 
 export default Text;

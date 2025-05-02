@@ -1,87 +1,126 @@
-import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+  CreateGroupModal,
+  GroupEmptyState,
+  GroupHeader,
+  GroupList,
+  GroupsLoadingState,
+  JoinGroupModal,
+} from "@/app/components/groups";
+import ThemedView from "@/app/components/layout/ThemedView";
+import Text from "@/app/components/ui/Text";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
+import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useAuth } from "../contexts/AuthContext";
-import { GroupModal, GroupSettingsModal } from "@/app/components";
-import { API_URL } from "../config";
+import { useThemeColor } from "../hooks/useThemeColor";
+import { apiService } from "../services/apiService";
+
+// Import GroupSettingsModal directly if it exists
+import GroupSettingsModal from "../components/modals/GroupSettingsModal";
+
+// Define the Group interface here
+interface Member {
+  _id: string;
+  name: string;
+  photos: string[];
+}
 
 interface Group {
   _id: string;
   name: string;
   description: string;
-  members: Array<{
-    _id: string;
-    name: string;
-    photos: string[];
-  }>;
+  bio?: string;
+  members: Member[];
   interests: string[];
   isPrivate: boolean;
   maxMembers: number;
   creator: string;
+  inviteCode: string;
+  photos?: string[];
 }
 
 export default function GroupsScreen() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+
+  // Modals state
+  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [isJoinModalVisible, setIsJoinModalVisible] = useState(false);
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
 
-  useEffect(() => {
-    fetchGroups();
-  }, []);
+  // Theme colors
+  const backgroundColor = useThemeColor({}, "background");
+  const primaryColor = useThemeColor({}, "primary");
 
-  const fetchGroups = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_URL}/api/groups`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+  // Constants
+  const MAX_GROUPS_PER_USER = 2;
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch groups");
+  const fetchGroups = useCallback(
+    async (showRefreshIndicator = false) => {
+      try {
+        if (showRefreshIndicator) {
+          setRefreshing(true);
+        } else {
+          setLoading(true);
+        }
+
+        const response = await apiService.get("/groups");
+        // The API directly returns the array of groups, not nested in a data property
+        setGroups(Array.isArray(response) ? response : []);
+        setError(null);
+      } catch (error: any) {
+        console.error("Error fetching groups:", error);
+        setError("Failed to load groups");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
+    },
+    [token]
+  );
 
-      const data = await response.json();
-      setGroups(data);
-    } catch (error) {
-      console.error("Error fetching groups:", error);
-      setError("Failed to load groups");
-    } finally {
-      setLoading(false);
-    }
+  // Fetch groups when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchGroups();
+    }, [fetchGroups])
+  );
+
+  const handleRefresh = () => {
+    fetchGroups(true);
+  };
+
+  const handleGroupPress = (group: Group) => {
+    setSelectedGroup(group);
+    setIsSettingsModalVisible(true);
   };
 
   const handleLeaveGroup = async (groupId: string) => {
-    try {
-      const response = await fetch(`${API_URL}/api/groups/${groupId}/leave`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
+    Alert.alert("Leave Group", "Are you sure you want to leave this group?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Leave",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await apiService.post(`/groups/${groupId}/leave`);
+            // Remove group from local state
+            setGroups(groups.filter((group) => group._id !== groupId));
+            Alert.alert("Success", "You have left the group");
+          } catch (error: any) {
+            Alert.alert(
+              "Error",
+              error.response?.data?.message || "Failed to leave group"
+            );
+          }
         },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to leave group");
-      }
-
-      setGroups(groups.filter((group) => group._id !== groupId));
-    } catch (error) {
-      console.error("Error leaving group:", error);
-      Alert.alert("Error", "Failed to leave group");
-    }
+      },
+    ]);
   };
 
   const handleGroupUpdate = (updates: Partial<Group>) => {
@@ -94,85 +133,91 @@ export default function GroupsScreen() {
     }
   };
 
-  const renderGroup = ({ item }: { item: Group }) => (
-    <TouchableOpacity
-      style={styles.groupCard}
-      onPress={() => {
-        setSelectedGroup(item);
-        setIsSettingsModalVisible(true);
-      }}
-    >
-      <View style={styles.groupHeader}>
-        <Text style={styles.groupName}>{item.name}</Text>
-        {item.isPrivate && (
-          <Ionicons name="lock-closed" size={16} color="#666" />
-        )}
-      </View>
-      <Text style={styles.groupDescription}>{item.description}</Text>
-      <View style={styles.groupFooter}>
-        <Text style={styles.memberCount}>
-          {item.members.length}{" "}
-          {item.members.length === 1 ? "member" : "members"}
-        </Text>
-        <TouchableOpacity
-          style={styles.leaveButton}
-          onPress={() => handleLeaveGroup(item._id)}
-        >
-          <Text style={styles.leaveButtonText}>Leave</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+  const renderHeaderButtons = () => (
+    <View style={styles.buttonsRow}>
+      <TouchableOpacity
+        style={[
+          styles.iconButton,
+          {
+            backgroundColor:
+              groups && groups.length >= MAX_GROUPS_PER_USER
+                ? "#CCCCCC"
+                : primaryColor + "20",
+          },
+        ]}
+        onPress={() => setIsJoinModalVisible(true)}
+        disabled={groups && groups.length >= MAX_GROUPS_PER_USER}
+      >
+        <MaterialCommunityIcons
+          name="account-group"
+          size={22}
+          color={primaryColor}
+        />
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[
+          styles.iconButton,
+          {
+            backgroundColor:
+              groups && groups.length >= MAX_GROUPS_PER_USER
+                ? "#CCCCCC"
+                : primaryColor,
+          },
+        ]}
+        onPress={() => setIsCreateModalVisible(true)}
+        disabled={groups && groups.length >= MAX_GROUPS_PER_USER}
+      >
+        <Ionicons name="add" size={22} color="white" />
+      </TouchableOpacity>
+    </View>
   );
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchGroups}>
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={groups}
-        renderItem={renderGroup}
-        keyExtractor={(item) => item._id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No groups yet</Text>
-            <Text style={styles.emptySubtext}>
-              Create a new group or join one using an invite code
-            </Text>
-          </View>
+    <ThemedView style={styles.container}>
+      <GroupHeader
+        title="My Groups"
+        subtitle={
+          groups && groups.length > 0
+            ? `${groups.length}/${MAX_GROUPS_PER_USER} groups joined`
+            : undefined
         }
+        rightComponent={renderHeaderButtons()}
       />
 
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => setIsModalVisible(true)}
-      >
-        <Ionicons name="add" size={24} color="white" />
-      </TouchableOpacity>
+      {error ? (
+        <View style={styles.errorContainer}>
+          <MaterialCommunityIcons
+            name="alert-circle-outline"
+            size={48}
+            color="#FF3B30"
+          />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => fetchGroups()}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : loading && !refreshing ? (
+        <GroupsLoadingState />
+      ) : groups && groups.length === 0 ? (
+        <GroupEmptyState
+          onCreateGroup={() => setIsCreateModalVisible(true)}
+          onJoinGroup={() => setIsJoinModalVisible(true)}
+        />
+      ) : (
+        <GroupList
+          groups={groups || []}
+          onGroupPress={handleGroupPress}
+          onLeaveGroup={handleLeaveGroup}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+          maxGroups={MAX_GROUPS_PER_USER}
+        />
+      )}
 
-      <GroupModal
-        visible={isModalVisible}
-        onClose={() => setIsModalVisible(false)}
-        onGroupCreated={fetchGroups}
-      />
-
+      {/* Group Settings Modal */}
       {selectedGroup && (
         <GroupSettingsModal
           visible={isSettingsModalVisible}
@@ -181,120 +226,70 @@ export default function GroupsScreen() {
             setSelectedGroup(null);
           }}
           group={selectedGroup}
-          onLeave={() => handleLeaveGroup(selectedGroup._id)}
+          onLeave={() => {
+            handleLeaveGroup(selectedGroup._id);
+            setIsSettingsModalVisible(false);
+            setSelectedGroup(null);
+          }}
           onUpdate={handleGroupUpdate}
-          isCreator={selectedGroup.creator === useAuth().user?._id}
+          isCreator={selectedGroup.creator === user?._id}
         />
       )}
-    </View>
+
+      {/* Create Group Modal */}
+      <CreateGroupModal
+        visible={isCreateModalVisible}
+        onClose={() => setIsCreateModalVisible(false)}
+        onGroupCreated={() => fetchGroups()}
+        userGroupsCount={groups ? groups.length : 0}
+        maxGroups={MAX_GROUPS_PER_USER}
+      />
+
+      {/* Join Group Modal */}
+      <JoinGroupModal
+        visible={isJoinModalVisible}
+        onClose={() => setIsJoinModalVisible(false)}
+        onGroupJoined={() => fetchGroups()}
+        userGroupsCount={groups ? groups.length : 0}
+        maxGroups={MAX_GROUPS_PER_USER}
+      />
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
   },
-  listContainer: {
-    padding: 16,
-  },
-  groupCard: {
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  groupHeader: {
+  buttonsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
   },
-  groupName: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-  },
-  groupDescription: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 12,
-  },
-  groupFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  memberCount: {
-    fontSize: 14,
-    color: "#666",
-  },
-  leaveButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: "#FF3B30",
-    borderRadius: 6,
-  },
-  leaveButtonText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  addButton: {
-    position: "absolute",
-    right: 24,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#007AFF",
+  iconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    marginLeft: 12,
   },
-  emptyContainer: {
+  errorContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#666",
-    textAlign: "center",
+    padding: 20,
   },
   errorText: {
     fontSize: 16,
     color: "#FF3B30",
     textAlign: "center",
-    marginBottom: 16,
+    marginVertical: 16,
   },
   retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     backgroundColor: "#007AFF",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
     borderRadius: 8,
+    marginTop: 8,
   },
   retryButtonText: {
     color: "white",

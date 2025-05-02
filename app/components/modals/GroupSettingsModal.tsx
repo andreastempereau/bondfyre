@@ -13,6 +13,9 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/apiService";
 import { Text } from "../index";
+import { Colors } from "../../constants/Colors";
+import { useColorScheme } from "../../hooks/useColorScheme";
+import theme from "../../theme";
 
 interface Member {
   _id: string;
@@ -24,11 +27,14 @@ interface Group {
   _id: string;
   name: string;
   description: string;
+  bio?: string;
   members: Member[];
   interests: string[];
   isPrivate: boolean;
   maxMembers: number;
   creator: string;
+  inviteCode: string;
+  photos?: string[];
 }
 
 interface GroupSettingsModalProps {
@@ -53,9 +59,11 @@ export default function GroupSettingsModal({
   const [isPrivate, setIsPrivate] = useState(group.isPrivate || false);
   const [loading, setLoading] = useState(false);
   const { token } = useAuth();
+  const colorScheme = useColorScheme() || "light";
+  const colors = Colors[colorScheme];
 
   const handleCopyInviteCode = () => {
-    Clipboard.setString(group._id);
+    Clipboard.setString(group.inviteCode);
     Alert.alert("Success", "Invite code copied to clipboard!");
   };
 
@@ -149,31 +157,48 @@ export default function GroupSettingsModal({
       <View style={styles.centeredView}>
         <View style={styles.modalView}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <MaterialCommunityIcons name="close" size={24} color="#000" />
+            <MaterialCommunityIcons
+              name="close"
+              size={24}
+              color={colors.text}
+            />
           </TouchableOpacity>
 
-          <Text style={styles.title}>Group Settings</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Group Settings
+          </Text>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Group Name</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Group Name
+            </Text>
             <TextInput
-              style={styles.input}
+              style={[
+                styles.input,
+                { backgroundColor: colors.inputBackground, color: colors.text },
+              ]}
               value={name}
               onChangeText={setName}
               placeholder="Enter group name"
-              placeholderTextColor="#A0A0A0"
+              placeholderTextColor={colors.placeholderText}
               editable={isCreator}
             />
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Description</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Description
+            </Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[
+                styles.input,
+                styles.textArea,
+                { backgroundColor: colors.inputBackground, color: colors.text },
+              ]}
               value={description}
               onChangeText={setDescription}
               placeholder="Enter group description"
-              placeholderTextColor="#A0A0A0"
+              placeholderTextColor={colors.placeholderText}
               multiline
               numberOfLines={4}
               editable={isCreator}
@@ -182,27 +207,43 @@ export default function GroupSettingsModal({
 
           {isCreator && (
             <View style={styles.section}>
-              <Text style={styles.label}>Privacy</Text>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Privacy
+              </Text>
               <View style={styles.optionsContainer}>
                 <TouchableOpacity
-                  style={[styles.option, !isPrivate && styles.selectedOption]}
+                  style={[
+                    styles.option,
+                    !isPrivate && {
+                      backgroundColor: colors.selectedOptionBackground,
+                    },
+                  ]}
                   onPress={() => setIsPrivate(false)}
                 >
                   <Text
                     style={
-                      !isPrivate ? styles.selectedOptionText : styles.optionText
+                      !isPrivate
+                        ? { color: colors.selectedOptionText }
+                        : { color: colors.optionText }
                     }
                   >
                     Public
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.option, isPrivate && styles.selectedOption]}
+                  style={[
+                    styles.option,
+                    isPrivate && {
+                      backgroundColor: colors.selectedOptionBackground,
+                    },
+                  ]}
                   onPress={() => setIsPrivate(true)}
                 >
                   <Text
                     style={
-                      isPrivate ? styles.selectedOptionText : styles.optionText
+                      isPrivate
+                        ? { color: colors.selectedOptionText }
+                        : { color: colors.optionText }
                     }
                   >
                     Private
@@ -213,7 +254,7 @@ export default function GroupSettingsModal({
           )}
 
           <View style={styles.section}>
-            <Text style={styles.label}>
+            <Text style={[styles.label, { color: colors.text }]}>
               Members ({group.members.length}/{group.maxMembers})
             </Text>
             <FlatList
@@ -221,15 +262,34 @@ export default function GroupSettingsModal({
               keyExtractor={(item) => item._id}
               renderItem={({ item }) => (
                 <View style={styles.memberItem}>
-                  <View style={styles.memberAvatar}>
+                  <View
+                    style={[
+                      styles.memberAvatar,
+                      { backgroundColor: colors.avatarBackground },
+                    ]}
+                  >
                     <Text style={styles.memberInitials}>
                       {item.name.charAt(0)}
                     </Text>
                   </View>
-                  <Text style={styles.memberName}>{item.name}</Text>
+                  <Text style={[styles.memberName, { color: colors.text }]}>
+                    {item.name}
+                  </Text>
                   {item._id === group.creator && (
-                    <View style={styles.creatorBadge}>
-                      <Text style={styles.creatorBadgeText}>Creator</Text>
+                    <View
+                      style={[
+                        styles.creatorBadge,
+                        { backgroundColor: colors.creatorBadgeBackground },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.creatorBadgeText,
+                          { color: colors.creatorBadgeText },
+                        ]}
+                      >
+                        Creator
+                      </Text>
                     </View>
                   )}
                 </View>
@@ -239,9 +299,18 @@ export default function GroupSettingsModal({
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Invite Code</Text>
-            <View style={styles.inviteCodeContainer}>
-              <Text style={styles.inviteCode}>{group._id}</Text>
+            <Text style={[styles.label, { color: colors.text }]}>
+              Invite Code
+            </Text>
+            <View
+              style={[
+                styles.inviteCodeContainer,
+                { backgroundColor: colors.inputBackground },
+              ]}
+            >
+              <Text style={[styles.inviteCode, { color: colors.text }]}>
+                {group.inviteCode}
+              </Text>
               <TouchableOpacity
                 onPress={handleCopyInviteCode}
                 style={styles.copyButton}
@@ -249,7 +318,7 @@ export default function GroupSettingsModal({
                 <MaterialCommunityIcons
                   name="content-copy"
                   size={20}
-                  color="#6200EE"
+                  color={colors.primary}
                 />
               </TouchableOpacity>
             </View>
@@ -257,21 +326,29 @@ export default function GroupSettingsModal({
 
           {isCreator && (
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+              style={[
+                styles.button,
+                loading && styles.buttonDisabled,
+                { backgroundColor: colors.primary },
+              ]}
               onPress={handleSave}
               disabled={loading}
             >
-              <Text style={styles.buttonText}>
+              <Text style={[styles.buttonText, { color: colors.buttonText }]}>
                 {loading ? "Saving..." : "Save Changes"}
               </Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
-            style={[styles.button, styles.dangerButton]}
+            style={[
+              styles.button,
+              styles.dangerButton,
+              { backgroundColor: colors.danger },
+            ]}
             onPress={isCreator ? handleDeleteGroup : handleLeaveGroup}
           >
-            <Text style={styles.buttonText}>
+            <Text style={[styles.buttonText, { color: colors.buttonText }]}>
               {isCreator ? "Delete Group" : "Leave Group"}
             </Text>
           </TouchableOpacity>
@@ -318,13 +395,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: "#757575",
     marginBottom: 8,
   },
   input: {
     width: "100%",
     height: 50,
-    backgroundColor: "#F5F5F5",
     borderRadius: 10,
     paddingHorizontal: 15,
     fontSize: 16,
@@ -344,19 +419,8 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F5F5F5",
     margin: 5,
     borderRadius: 8,
-  },
-  selectedOption: {
-    backgroundColor: "#6200EE",
-  },
-  optionText: {
-    color: "#757575",
-  },
-  selectedOptionText: {
-    color: "white",
-    fontWeight: "500",
   },
   membersList: {
     maxHeight: 150,
@@ -370,7 +434,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: "#6200EE",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 10,
@@ -385,20 +448,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   creatorBadge: {
-    backgroundColor: "#EDE7F6",
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
   creatorBadgeText: {
-    color: "#6200EE",
     fontSize: 12,
     fontWeight: "500",
   },
   inviteCodeContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F5F5F5",
     borderRadius: 10,
     paddingHorizontal: 15,
     height: 50,
@@ -406,7 +466,6 @@ const styles = StyleSheet.create({
   inviteCode: {
     flex: 1,
     fontSize: 14,
-    color: "#757575",
   },
   copyButton: {
     padding: 8,
@@ -414,7 +473,6 @@ const styles = StyleSheet.create({
   button: {
     width: "100%",
     height: 50,
-    backgroundColor: "#6200EE",
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
@@ -423,11 +481,8 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     backgroundColor: "#B39DDB",
   },
-  dangerButton: {
-    backgroundColor: "#F44336",
-  },
+  dangerButton: {},
   buttonText: {
-    color: "white",
     fontSize: 16,
     fontWeight: "500",
   },

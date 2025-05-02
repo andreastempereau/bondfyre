@@ -6,6 +6,7 @@ import {
   getGroup,
   updateGroup,
   deleteGroup,
+  joinGroupByInviteCode,
 } from "../controllers";
 
 const router = express.Router();
@@ -27,5 +28,8 @@ router.put("/:id", updateGroup);
 
 // Delete a group
 router.delete("/:id", deleteGroup);
+
+// Join a group using invite code
+router.post("/join", joinGroupByInviteCode);
 
 export default router;

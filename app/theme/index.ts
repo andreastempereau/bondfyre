@@ -23,9 +23,9 @@ const spacing = {
 // Color palette
 const palette = {
   // Primary colors
-  primary: "#6200EE",
-  primaryLight: "#B39DDB",
-  primaryDark: "#3700B3",
+  primary: "#FF6B6B", // Updated to match the red used across the app
+  primaryLight: "#FFA8A8",
+  primaryDark: "#E53E3E",
 
   // Secondary colors
   secondary: "#03DAC6",
