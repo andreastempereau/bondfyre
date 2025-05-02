@@ -15,12 +15,12 @@ import { apiService } from "../services/apiService";
 // Import separated components
 import {
   ProfileHeader,
-  InterestTags,
   ProfileEditForm,
   UnauthenticatedView,
 } from "../components/profile";
 import { ProfileEditValues } from "../components/profile/ProfileEditForm";
 import { SafeAreaView } from "react-native-safe-area-context";
+import InterestTags from "../components/profile/InterestTags";
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
@@ -133,7 +133,9 @@ export default function ProfileScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Interests</Text>
-          <InterestTags interests={user.profile?.interests} />
+          <InterestTags
+            interests={user.profile?.interests ? user.profile.interests : []}
+          />
         </View>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>

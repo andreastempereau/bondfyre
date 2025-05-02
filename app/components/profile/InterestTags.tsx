@@ -1,42 +1,45 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-export interface InterestTagsProps {
-  interests?: string[];
+interface InterestTagsProps {
+  interests: string[];
 }
 
-export const InterestTags = ({ interests }: InterestTagsProps) => (
-  <View style={styles.interestsContainer}>
-    {interests && interests.length > 0 ? (
-      interests.map((interest: string, index: number) => (
+const InterestTags: React.FC<InterestTagsProps> = ({ interests }) => {
+  return (
+    <View style={styles.interestsContainer}>
+      {interests.map((interest, index) => (
         <View key={index} style={styles.interestTag}>
           <Text style={styles.interestText}>{interest}</Text>
         </View>
-      ))
-    ) : (
-      <Text style={styles.emptyText}>No interests added yet</Text>
-    )}
-  </View>
-);
+      ))}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   interestsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
   },
   interestTag: {
     backgroundColor: "#f0f0f0",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
   },
   interestText: {
     color: "#333",
-    fontSize: 14,
-  },
-  emptyText: {
-    color: "#999",
-    fontStyle: "italic",
+    fontSize: 13,
+    fontWeight: "500",
   },
 });
+
+export default InterestTags;

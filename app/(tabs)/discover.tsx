@@ -1,63 +1,102 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, Image, TouchableOpacity, Animated } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
-import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import React, { useState, useRef } from "react";
+import { View, StyleSheet, Dimensions, Animated, Platform } from "react-native";
+import { State } from "react-native-gesture-handler";
+import {
+  GroupProfile,
+  SwipeDirection,
+  SwipeCard,
+  ActionButtons,
+  EmptyState,
+} from "../components/discover";
+import { StatusBar } from "expo-status-bar";
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
 
-// Temporary mock data - will be replaced with backend data later
-const MOCK_GROUP_PROFILES = [
+// Mock data
+const MOCK_GROUP_PROFILES: GroupProfile[] = [
   {
-    id: '1',
-    name: 'Weekend Warriors',
+    id: "1",
+    name: "Weekend Warriors",
     members: [
       {
-        id: '1',
-        name: 'John Doe',
+        id: "1",
+        name: "John Doe",
         age: 29,
-        gender: 'male',
-        image: 'https://picsum.photos/200/200',
+        gender: "male",
+        image:
+          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8ZmFjZXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=200&q=60",
       },
       {
-        id: '2',
-        name: 'Mike Smith',
+        id: "2",
+        name: "Mike Smith",
         age: 31,
-        gender: 'male',
-        image: 'https://picsum.photos/200/200',
+        gender: "male",
+        image:
+          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MjF8fGZhY2V8ZW58MHx8MHx8&auto=format&fit=crop&w=200&q=60",
       },
     ],
-    bio: 'Looking for fun double dates!',
-    interests: ['Hiking', 'Travel', 'Food'],
+    bio: "Looking for fun double dates!",
+    interests: ["Hiking", "Travel", "Food"],
     photos: [
-      'https://picsum.photos/400/600',
-      'https://picsum.photos/400/600',
+      "https://images.unsplash.com/photo-1501555088652-021faa106b9b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8aGlraW5nfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
+      "https://images.unsplash.com/photo-1527004013197-933c4bb611b3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8aGlraW5nJTIwZ3JvdXB8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
     ],
   },
   {
-    id: '2',
-    name: 'Adventure Seekers',
+    id: "2",
+    name: "Adventure Seekers",
     members: [
       {
-        id: '3',
-        name: 'Sarah Wilson',
+        id: "3",
+        name: "Sarah Wilson",
         age: 28,
-        gender: 'female',
-        image: 'https://picsum.photos/200/200',
+        gender: "female",
+        image:
+          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8ZmFjZXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=200&q=60",
       },
       {
-        id: '4',
-        name: 'Emma Davis',
+        id: "4",
+        name: "Emma Davis",
         age: 27,
-        gender: 'female',
-        image: 'https://picsum.photos/200/200',
+        gender: "female",
+        image:
+          "https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NHx8ZmFjZXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=200&q=60",
       },
     ],
-    bio: 'Love exploring new places together!',
-    interests: ['Adventure', 'Photography', 'Coffee'],
+    bio: "Love exploring new places together!",
+    interests: ["Adventure", "Photography", "Coffee"],
     photos: [
-      'https://picsum.photos/400/600',
-      'https://picsum.photos/400/600',
+      "https://images.unsplash.com/photo-1504209342968-21977e932bf0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8YWR2ZW50dXJlfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
+      "https://images.unsplash.com/photo-1530866495561-57f273b91216?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8OHx8YWR2ZW50dXJlJTIwZ3JvdXB8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
+    ],
+  },
+  {
+    id: "3",
+    name: "City Explorers",
+    members: [
+      {
+        id: "5",
+        name: "Alex Johnson",
+        age: 30,
+        gender: "male",
+        image:
+          "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8ZmFjZXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=200&q=60",
+      },
+      {
+        id: "6",
+        name: "Jessica Brown",
+        age: 29,
+        gender: "female",
+        image:
+          "https://images.unsplash.com/photo-1554151228-14d9def656e4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Nnx8ZmFjZXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=200&q=60",
+      },
+    ],
+    bio: "We love discovering hidden gems in the city!",
+    interests: ["Urban Exploration", "Food", "Art"],
+    photos: [
+      "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8dXJiYW4lMjBleHBsb3JlcnN8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
+      "https://images.unsplash.com/photo-1521336993297-77c5a81ce4d8?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8OHx8Y2l0eSUyMGdyb3VwfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
     ],
   },
 ];
@@ -77,7 +116,7 @@ export default function DiscoverScreen() {
     if (event.nativeEvent.oldState === State.ACTIVE) {
       const { translationX } = event.nativeEvent;
       if (Math.abs(translationX) > SWIPE_THRESHOLD) {
-        const direction = translationX > 0 ? 'right' : 'left';
+        const direction = translationX > 0 ? "right" : "left";
         handleSwipe(direction);
       } else {
         Animated.spring(position, {
@@ -88,15 +127,15 @@ export default function DiscoverScreen() {
     }
   };
 
-  const handleSwipe = (direction: 'left' | 'right') => {
-    const x = direction === 'right' ? SCREEN_WIDTH : -SCREEN_WIDTH;
+  const handleSwipe = (direction: SwipeDirection) => {
+    const x = direction === "right" ? SCREEN_WIDTH : -SCREEN_WIDTH;
     Animated.timing(position, {
       toValue: { x, y: 0 },
       duration: 250,
       useNativeDriver: false,
     }).start(() => {
       position.setValue({ x: 0, y: 0 });
-      setCurrentIndex(prev => prev + 1);
+      setCurrentIndex((prev) => prev + 1);
       setCurrentPhotoIndex(0);
     });
   };
@@ -104,7 +143,7 @@ export default function DiscoverScreen() {
   const getCardStyle = () => {
     const rotate = position.x.interpolate({
       inputRange: [-SCREEN_WIDTH * 1.5, 0, SCREEN_WIDTH * 1.5],
-      outputRange: ['-30deg', '0deg', '30deg'],
+      outputRange: ["-30deg", "0deg", "30deg"],
     });
 
     return {
@@ -113,12 +152,17 @@ export default function DiscoverScreen() {
     };
   };
 
+  const handlePhotoPress = () => {
+    const currentProfile = profiles[currentIndex];
+    setCurrentPhotoIndex((prev) =>
+      prev === currentProfile.photos.length - 1 ? 0 : prev + 1
+    );
+  };
+
   if (currentIndex >= profiles.length) {
     return (
       <View style={styles.container}>
-        <FontAwesome name="compass" size={64} color="#999" />
-        <Text style={styles.title}>No more groups to show!</Text>
-        <Text style={styles.subtitle}>Check back later for new matches!</Text>
+        <EmptyState />
       </View>
     );
   }
@@ -127,70 +171,22 @@ export default function DiscoverScreen() {
 
   return (
     <View style={styles.container}>
-      <PanGestureHandler
-        onGestureEvent={onGestureEvent}
-        onHandlerStateChange={onHandlerStateChange}
-        activeOffsetX={[-10, 10]}
-      >
-        <Animated.View style={[styles.card, getCardStyle()]}>
-          <View style={styles.imageContainer}>
-            <TouchableOpacity 
-              onPress={() => setCurrentPhotoIndex(prev => 
-                prev === currentProfile.photos.length - 1 ? 0 : prev + 1
-              )}
-            >
-              <Image 
-                source={{ uri: currentProfile.photos[currentPhotoIndex] }} 
-                style={styles.image}
-              />
-            </TouchableOpacity>
-            <View style={styles.photoIndicator}>
-              {currentProfile.photos.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.photoDot,
-                    index === currentPhotoIndex && styles.photoDotActive,
-                  ]}
-                />
-              ))}
-            </View>
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.groupName}>{currentProfile.name}</Text>
-            <View style={styles.membersContainer}>
-              {currentProfile.members.map((member) => (
-                <View key={member.id} style={styles.memberInfo}>
-                  <Text style={styles.memberName}>{member.name}, {member.age}</Text>
-                  <Text style={styles.memberGender}>{member.gender}</Text>
-                </View>
-              ))}
-            </View>
-            <Text style={styles.bio}>{currentProfile.bio}</Text>
-            <View style={styles.interestsContainer}>
-              {currentProfile.interests.map((interest, index) => (
-                <View key={index} style={styles.interestTag}>
-                  <Text style={styles.interestText}>{interest}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </Animated.View>
-      </PanGestureHandler>
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity
-          onPress={() => handleSwipe('left')}
-          style={[styles.button, styles.nopeButton]}
-        >
-          <FontAwesome name="times" size={24} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => handleSwipe('right')}
-          style={[styles.button, styles.likeButton]}
-        >
-          <FontAwesome name="heart" size={24} color="white" />
-        </TouchableOpacity>
+      <StatusBar style="dark" />
+      <View style={styles.cardContainer}>
+        <SwipeCard
+          profile={currentProfile}
+          currentPhotoIndex={currentPhotoIndex}
+          onPhotoPress={handlePhotoPress}
+          onGestureEvent={onGestureEvent}
+          onHandlerStateChange={onHandlerStateChange}
+          cardStyle={getCardStyle()}
+        />
       </View>
+      <View style={styles.actionButtonContainer}>
+        <ActionButtons onSwipe={handleSwipe} />
+      </View>
+      {/* Add a spacer to prevent overlap with tab bar */}
+      <View style={styles.bottomSpacer} />
     </View>
   );
 }
@@ -198,125 +194,21 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    padding: 20,
-  },
-  card: {
-    width: SCREEN_WIDTH - 40,
-    height: Dimensions.get('window').height * 0.7,
-    marginBottom: 20,
-    borderRadius: 20,
-    overflow: 'hidden',
-    backgroundColor: 'white',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  imageContainer: {
-    flex: 1,
-    width: '100%',
-  },
-  image: {
-    flex: 1,
-    width: '100%',
-  },
-  photoIndicator: {
-    position: 'absolute',
-    bottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  photoDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    marginHorizontal: 4,
-  },
-  photoDotActive: {
-    backgroundColor: 'white',
-  },
-  profileInfo: {
-    padding: 20,
-    backgroundColor: 'white',
-  },
-  groupName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 12,
-  },
-  membersContainer: {
-    marginBottom: 12,
-  },
-  memberInfo: {
-    marginBottom: 4,
-  },
-  memberName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  memberGender: {
-    fontSize: 14,
-    color: '#666',
-  },
-  bio: {
-    fontSize: 16,
-    color: '#333',
-    marginBottom: 12,
-    lineHeight: 24,
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  interestTag: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  interestText: {
-    color: '#333',
-    fontSize: 14,
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
+    backgroundColor: "#f5f5f5",
+    paddingTop: 5, // Reduced top padding
     paddingHorizontal: 20,
+    justifyContent: "space-between", // Distribute space evenly
   },
-  button: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
+  cardContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  nopeButton: {
-    backgroundColor: '#ff4d4d',
+  actionButtonContainer: {
+    alignItems: "center",
+    paddingBottom: 5,
   },
-  likeButton: {
-    backgroundColor: '#4CAF50',
+  bottomSpacer: {
+    height: Platform.OS === "ios" ? 60 : 50, // Add space at bottom to prevent tab bar overlap
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 20,
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 10,
-    textAlign: 'center',
-  },
-}); 
+});
