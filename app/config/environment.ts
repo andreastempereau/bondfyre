@@ -34,3 +34,5 @@ export const Config = {
   DEFAULT_TIMEOUT: 10000, // 10 seconds
   PROFILE_PHOTO_SIZE_LIMIT: 5 * 1024 * 1024, // 5MB
 };
+
+export default Config;
