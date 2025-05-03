@@ -58,3 +58,6 @@ export const profileEditSchema = yup.object({
 export type SignInFormData = yup.InferType<typeof signInSchema>;
 export type SignUpFormData = yup.InferType<typeof signUpSchema>;
 export type ProfileEditFormData = yup.InferType<typeof profileEditSchema>;
+
+// Adding default export to prevent Expo Router from treating this as a route
+export default { signInSchema, signUpSchema, profileEditSchema };

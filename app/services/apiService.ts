@@ -64,7 +64,7 @@ class ApiService {
 
     // Handle API errors with response
     const status = error.response.status;
-    const data = error.response.data as any;
+    const data = error.response.data as { message?: string };
 
     // Authentication errors
     if (status === 401) {
@@ -90,7 +90,10 @@ class ApiService {
       ]);
       // You could emit an event here to notify the app about logout
     } catch (error) {
-      console.error("Failed to clear auth data:", error);
+      console.error(
+        "Failed to clear auth data:",
+        error instanceof Error ? error.message : "Unknown error"
+      );
     }
   };
 

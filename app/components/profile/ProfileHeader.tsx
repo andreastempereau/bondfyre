@@ -80,3 +80,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 });
+
+// Adding default export to prevent Expo Router from treating this as a route
+export default ProfileHeader;

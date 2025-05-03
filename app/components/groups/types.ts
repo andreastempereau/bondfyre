@@ -1,67 +1,24 @@
 import { ReactNode } from "react";
+import {
+  CreateGroupModalProps,
+  GroupCardProps,
+  GroupEmptyStateProps,
+  GroupHeaderProps,
+  GroupListProps,
+  InviteCodeCardProps,
+  JoinGroupModalProps,
+} from "../../types/components";
 
-export interface Member {
-  _id: string;
-  name: string;
-  photos: string[];
-}
+// Re-export types from centralized types
+export type {
+  CreateGroupModalProps,
+  GroupCardProps,
+  GroupEmptyStateProps,
+  GroupHeaderProps,
+  GroupListProps,
+  InviteCodeCardProps,
+  JoinGroupModalProps,
+};
 
-export interface Group {
-  _id: string;
-  name: string;
-  description: string;
-  bio?: string;
-  members: Member[];
-  interests: string[];
-  isPrivate: boolean;
-  maxMembers: number;
-  creator: string;
-  inviteCode: string;
-  photos?: string[];
-}
-export interface GroupCardProps {
-  group: Group;
-  onPress: (group: Group) => void;
-  onLeaveGroup: (groupId: string) => void;
-}
-
-export interface GroupListProps {
-  groups: Group[];
-  onGroupPress: (group: Group) => void;
-  onLeaveGroup: (groupId: string) => void;
-  refreshing?: boolean;
-  onRefresh?: () => void;
-  maxGroups?: number;
-}
-
-export interface JoinGroupModalProps {
-  visible: boolean;
-  onClose: () => void;
-  onGroupJoined?: () => void;
-  userGroupsCount?: number;
-  maxGroups?: number;
-}
-
-export interface CreateGroupModalProps {
-  visible: boolean;
-  onClose: () => void;
-  onGroupCreated?: () => void;
-  userGroupsCount: number;
-  maxGroups: number;
-}
-
-export interface GroupEmptyStateProps {
-  onCreateGroup: () => void;
-  onJoinGroup: () => void;
-}
-
-export interface InviteCodeCardProps {
-  inviteCode: string;
-  onCopy: () => void;
-}
-
-export interface GroupHeaderProps {
-  title: string;
-  subtitle?: string;
-  rightComponent?: ReactNode;
-}
+// Adding default export to prevent Expo Router from treating this as a route
+export default {};

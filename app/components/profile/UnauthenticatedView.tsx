@@ -82,3 +82,6 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
 });
+
+// Adding default export to prevent Expo Router from treating this as a route
+export default UnauthenticatedView;

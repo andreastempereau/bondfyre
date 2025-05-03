@@ -17,7 +17,12 @@ export interface User {
   _id: string;
   email: string;
   name: string;
-  profile?: Profile;
+  bio?: string;
+  age?: number;
+  gender?: string;
+  interests?: string[];
+  photos?: string[];
+  profile?: Profile; // Keep for backward compatibility
 }
 
 interface AuthContextType {
@@ -106,7 +111,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
 
       console.log("Sign in successful, saving auth data");
-      await saveAuthData(response.token, response.user);
+
+      // Normalize the user data structure
+      const normalizedUser = normalizeUserData(response.user);
+
+      await saveAuthData(response.token, normalizedUser);
     } catch (error: any) {
       console.error("Login error:", error);
       throw new Error(error.message || "Failed to sign in");
@@ -132,11 +141,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
 
       console.log("Registration successful, saving auth data");
-      await saveAuthData(response.token, response.user);
+
+      // Normalize the user data structure
+      const normalizedUser = normalizeUserData(response.user);
+
+      await saveAuthData(response.token, normalizedUser);
     } catch (error: any) {
       console.error("Registration error:", error);
       throw new Error(error.message || "Failed to sign up");
     }
+  };
+
+  // Helper function to normalize user data structure
+  const normalizeUserData = (userData: User): User => {
+    const normalizedUser: User = { ...userData };
+
+    // If profile exists, merge its properties to the top level
+    if (userData.profile) {
+      normalizedUser.bio = userData.bio || userData.profile.bio;
+      normalizedUser.age = userData.age || userData.profile.age;
+      normalizedUser.gender = userData.gender || userData.profile.gender;
+      normalizedUser.interests =
+        userData.interests || userData.profile.interests || [];
+      normalizedUser.photos = userData.photos || userData.profile.photos || [];
+    }
+
+    return normalizedUser;
   };
 
   const updateUser = async (userData: Partial<User>) => {
@@ -151,12 +181,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
 
       // Update local storage with merged user data
-      const newUserData = { ...user, ...updatedUser };
+      const normalizedUser = normalizeUserData({ ...user, ...updatedUser });
       await AsyncStorage.setItem(
         Config.STORAGE_KEYS.USER_DATA,
-        JSON.stringify(newUserData)
+        JSON.stringify(normalizedUser)
       );
-      setUser(newUserData);
+      setUser(normalizedUser);
     } catch (error: any) {
       console.error("Update user error:", error);
       throw new Error(error.message || "Failed to update user data");
@@ -193,3 +223,5 @@ export function useAuth() {
   }
   return context;
 }
+
+export default AuthProvider;

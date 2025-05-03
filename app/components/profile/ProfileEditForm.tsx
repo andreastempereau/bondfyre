@@ -109,3 +109,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 });
+
+// Adding default export to prevent Expo Router from treating this as a route
+export default ProfileEditForm;

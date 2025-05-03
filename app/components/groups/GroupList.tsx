@@ -4,40 +4,9 @@ import GroupCard from "./GroupCard";
 import GroupEmptyState from "./GroupEmptyState";
 import Text from "../ui/Text";
 import { useThemeColor } from "@/app/hooks/useThemeColor";
-
-interface Member {
-  _id: string;
-  name: string;
-  photos: string[];
-}
-interface Group {
-  _id: string;
-  name: string;
-  description: string;
-  bio?: string;
-  members: Member[];
-  interests: string[];
-  isPrivate: boolean;
-  maxMembers: number;
-  creator: string;
-  inviteCode: string;
-  photos?: string[];
-}
-
-interface GroupListProps {
-  groups: Group[];
-  onGroupPress: (group: Group) => void;
-  onLeaveGroup: (groupId: string) => void;
-  refreshing?: boolean;
-  onRefresh?: () => void;
-  maxGroups?: number;
-}
-
-// Forward declaration for circular dependency
-interface GroupEmptyStateProps {
-  onCreateGroup: () => void;
-  onJoinGroup: () => void;
-}
+// Import types from centralized location
+import { Group } from "../../types/entities";
+import { GroupListProps } from "../../types/components";
 
 type GroupListFooterProps = {
   canCreateGroup: boolean;

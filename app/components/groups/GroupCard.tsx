@@ -3,32 +3,9 @@ import { View, TouchableOpacity, StyleSheet } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Text from "../ui/Text";
 import { useThemeColor } from "@/app/hooks/useThemeColor";
-
-interface Member {
-  _id: string;
-  name: string;
-  photos: string[];
-}
-
-interface Group {
-  _id: string;
-  name: string;
-  description: string;
-  bio?: string;
-  members: Member[];
-  interests: string[];
-  isPrivate: boolean;
-  maxMembers: number;
-  creator: string;
-  inviteCode: string;
-  photos?: string[];
-}
-
-interface GroupCardProps {
-  group: Group;
-  onPress: (group: Group) => void;
-  onLeaveGroup: (groupId: string) => void;
-}
+// Import types from centralized location
+import { Group, Member } from "../../types/entities";
+import { GroupCardProps } from "../../types/components";
 
 export default function GroupCard({
   group,

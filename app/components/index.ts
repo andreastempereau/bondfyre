@@ -24,3 +24,6 @@ export { default as ExternalLink } from "./features/ExternalLink";
 // Modal Components
 export { default as GroupModal } from "./modals/GroupModal";
 export { default as GroupSettingsModal } from "./modals/GroupSettingsModal";
+
+// Adding default export to prevent Expo Router from treating this as a route
+export default {};

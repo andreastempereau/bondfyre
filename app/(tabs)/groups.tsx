@@ -18,27 +18,8 @@ import { apiService } from "../services/apiService";
 
 // Import GroupSettingsModal directly if it exists
 import GroupSettingsModal from "../components/modals/GroupSettingsModal";
-
-// Define the Group interface here
-interface Member {
-  _id: string;
-  name: string;
-  photos: string[];
-}
-
-interface Group {
-  _id: string;
-  name: string;
-  description: string;
-  bio?: string;
-  members: Member[];
-  interests: string[];
-  isPrivate: boolean;
-  maxMembers: number;
-  creator: string;
-  inviteCode: string;
-  photos?: string[];
-}
+// Import types from centralized location
+import { Group } from "../types/entities";
 
 export default function GroupsScreen() {
   const { token, user } = useAuth();

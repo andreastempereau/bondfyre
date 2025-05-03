@@ -52,3 +52,6 @@ export const Colors = {
     danger: "#CF6679",
   },
 };
+
+// Adding default export to prevent Expo Router from treating this as a route
+export default Colors;

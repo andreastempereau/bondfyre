@@ -14,3 +14,6 @@ export function useThemeColor(
     return Colors[theme][colorName];
   }
 }
+
+// Adding default export to prevent Expo Router from treating this as a route
+export default useThemeColor;

@@ -79,3 +79,6 @@ export const validateForm = (
 
   return { isValid, errors };
 };
+
+// Adding default export to prevent Expo Router from treating this as a route
+export default { validateField, validateForm };

@@ -8,23 +8,8 @@ export { default as CreateGroupModal } from "./CreateGroupModal";
 export { default as GroupsLoadingState } from "./GroupsLoadingState";
 export { default as GroupHeader } from "./GroupHeader";
 
-// Explicitly define and export the Group interface to avoid circular dependencies
-export interface Member {
-  _id: string;
-  name: string;
-  photos: string[];
-}
+// Import and re-export types from the centralized types folder
+export { Group, Member } from "../../types/entities";
 
-export interface Group {
-  _id: string;
-  name: string;
-  description: string;
-  bio?: string;
-  members: Member[];
-  interests: string[];
-  isPrivate: boolean;
-  maxMembers: number;
-  creator: string;
-  inviteCode: string;
-  photos?: string[];
-}
+// Adding default export to prevent Expo Router from treating this as a route
+export default {};

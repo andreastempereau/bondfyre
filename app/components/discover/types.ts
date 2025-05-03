@@ -1,18 +1,24 @@
-export interface Member {
-  id: string;
-  name: string;
-  age: number;
-  gender: string;
-  image: string;
-}
+import {
+  DiscoverMember,
+  GroupProfile,
+  SwipeCardProps,
+  ActionButtonsProps,
+  GroupProfileInfoProps,
+  EmptyStateProps,
+} from "../../types/components";
 
-export interface GroupProfile {
-  id: string;
-  name: string;
-  members: Member[];
-  bio: string;
-  interests: string[];
-  photos: string[];
-}
+// Re-export types from centralized types
+export type {
+  DiscoverMember,
+  GroupProfile,
+  SwipeCardProps,
+  ActionButtonsProps,
+  GroupProfileInfoProps,
+  EmptyStateProps,
+};
 
-export type SwipeDirection = "left" | "right";
+// Re-export the SwipeDirection type
+export type { SwipeDirection } from "../../types/entities";
+
+// Adding default export to prevent Expo Router from treating this as a route
+export default {};
