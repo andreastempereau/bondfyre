@@ -15,7 +15,7 @@ const getApiUrl = () => {
     if (Platform.OS === "android") {
       return "http://10.0.2.2:3000/api"; // Android emulator needs this special IP
     } else {
-      return "http://localhost:3000/api"; // iOS simulator and web can use localhost
+      return "https://63a1-2a09-bac1-36c0-00-29e-18.ngrok-free.app/api"; // iOS simulator and web can use localhost
     }
   }
 

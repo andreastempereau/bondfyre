@@ -9,6 +9,7 @@ import {
   matchRoutes,
   messageRoutes,
   swipeRoutes,
+  discoveryRoutes,
 } from "./routes";
 
 // Load environment variables
@@ -24,7 +25,12 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 const allowedOrigins =
   NODE_ENV === "production"
     ? ["https://yourdomain.com", "https://*.yourdomain.com"]
-    : ["http://localhost:3000", "exp://*", "http://*"];
+    : [
+        "http://localhost:3000",
+        "exp://*",
+        "http://*",
+        "https://63a1-2a09-bac1-36c0-00-29e-18.ngrok-free.app",
+      ];
 
 // Middleware
 app.use(
@@ -50,6 +56,7 @@ app.use("/api/groups", groupRoutes);
 app.use("/api/matches", matchRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/swipes", swipeRoutes);
+app.use("/api/discovery", discoveryRoutes);
 
 // Health check endpoint
 app.get("/health", (_req, res) => {

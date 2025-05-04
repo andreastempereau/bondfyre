@@ -1,5 +1,18 @@
-import React, { useState, useRef } from "react";
-import { View, StyleSheet, Dimensions, Animated, Platform } from "react-native";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  Animated,
+  Platform,
+  ActivityIndicator,
+  Text,
+  TouchableOpacity,
+  RefreshControl,
+  ScrollView,
+  Modal,
+  Image,
+} from "react-native";
 import { State } from "react-native-gesture-handler";
 import {
   GroupProfile,
@@ -9,103 +22,117 @@ import {
   EmptyState,
 } from "../components/discover";
 import { StatusBar } from "expo-status-bar";
+import { apiService } from "../services/apiService";
+import { FontAwesome } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import * as Haptics from "expo-haptics";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
 
-// Mock data
-const MOCK_GROUP_PROFILES: GroupProfile[] = [
-  {
-    id: "1",
-    name: "Weekend Warriors",
-    members: [
-      {
-        id: "1",
-        name: "John Doe",
-        age: 29,
-        gender: "male",
-        image:
-          "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8ZmFjZXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=200&q=60",
-      },
-      {
-        id: "2",
-        name: "Mike Smith",
-        age: 31,
-        gender: "male",
-        image:
-          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MjF8fGZhY2V8ZW58MHx8MHx8&auto=format&fit=crop&w=200&q=60",
-      },
-    ],
-    bio: "Looking for fun double dates!",
-    interests: ["Hiking", "Travel", "Food"],
-    photos: [
-      "https://images.unsplash.com/photo-1501555088652-021faa106b9b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8aGlraW5nfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
-      "https://images.unsplash.com/photo-1527004013197-933c4bb611b3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8aGlraW5nJTIwZ3JvdXB8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
-    ],
-  },
-  {
-    id: "2",
-    name: "Adventure Seekers",
-    members: [
-      {
-        id: "3",
-        name: "Sarah Wilson",
-        age: 28,
-        gender: "female",
-        image:
-          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8ZmFjZXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=200&q=60",
-      },
-      {
-        id: "4",
-        name: "Emma Davis",
-        age: 27,
-        gender: "female",
-        image:
-          "https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NHx8ZmFjZXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=200&q=60",
-      },
-    ],
-    bio: "Love exploring new places together!",
-    interests: ["Adventure", "Photography", "Coffee"],
-    photos: [
-      "https://images.unsplash.com/photo-1504209342968-21977e932bf0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8M3x8YWR2ZW50dXJlfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
-      "https://images.unsplash.com/photo-1530866495561-57f273b91216?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8OHx8YWR2ZW50dXJlJTIwZ3JvdXB8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
-    ],
-  },
-  {
-    id: "3",
-    name: "City Explorers",
-    members: [
-      {
-        id: "5",
-        name: "Alex Johnson",
-        age: 30,
-        gender: "male",
-        image:
-          "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8ZmFjZXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=200&q=60",
-      },
-      {
-        id: "6",
-        name: "Jessica Brown",
-        age: 29,
-        gender: "female",
-        image:
-          "https://images.unsplash.com/photo-1554151228-14d9def656e4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Nnx8ZmFjZXxlbnwwfHwwfHw%3D&auto=format&fit=crop&w=200&q=60",
-      },
-    ],
-    bio: "We love discovering hidden gems in the city!",
-    interests: ["Urban Exploration", "Food", "Art"],
-    photos: [
-      "https://images.unsplash.com/photo-1517457373958-b7bdd4587205?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8dXJiYW4lMjBleHBsb3JlcnN8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
-      "https://images.unsplash.com/photo-1521336993297-77c5a81ce4d8?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8OHx8Y2l0eSUyMGdyb3VwfGVufDB8fDB8fA%3D%3D&auto=format&fit=crop&w=800&q=60",
-    ],
-  },
-];
-
 export default function DiscoverScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [profiles, setProfiles] = useState(MOCK_GROUP_PROFILES);
+  const [profiles, setProfiles] = useState<GroupProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const position = useRef(new Animated.ValueXY()).current;
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [discoveryMode, setDiscoveryMode] = useState<"users" | "groups">(
+    "groups"
+  );
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Match notification state
+  const [matchModal, setMatchModal] = useState(false);
+  const [matchDetails, setMatchDetails] = useState<any>(null);
+  const router = useRouter();
+
+  const fetchDiscoveryData = useCallback(
+    async (refresh = false) => {
+      try {
+        if (refresh) {
+          setRefreshing(true);
+          setOffset(0); // Reset offset if refreshing
+        } else {
+          setLoading(true);
+        }
+
+        // Use the discovery API endpoint based on mode - using a limit of 10
+        // Add excludeSwiped=true parameter to filter out already swiped profiles
+        const response = await apiService.get(
+          `/discovery/${discoveryMode}?limit=10&offset=${
+            refresh ? 0 : offset
+          }&excludeSwiped=true`
+        );
+
+        // The API returns an object with data, not just an array
+        const data = (response as any)[discoveryMode]; // 'users' or 'groups' property
+        const hasMoreData = (response as any).hasMore;
+
+        // Map the response data to match the GroupProfile structure
+        const formattedProfiles = data.map((item: any) => ({
+          id: item._id,
+          name: item.name,
+          members:
+            item.members?.map((member: any) => ({
+              id: member._id,
+              name: member.name,
+              age: member.age || 25,
+              gender: member.gender || "unknown",
+              image: member.photos?.[0] || "https://via.placeholder.com/150",
+            })) || [],
+          bio: item.bio || "",
+          interests: item.interests || [],
+          photos:
+            item.photos && item.photos.length > 0
+              ? item.photos
+              : ["https://via.placeholder.com/500"],
+          // Include the additional discovery data
+          relevanceScore: item.relevanceScore,
+          matchingInterests: item.matchingInterests || [],
+          mutualConnections: item.mutualConnections || 0,
+          isGroupConnection: item.isGroupConnection || false,
+        }));
+
+        if (refresh) {
+          // Replace all data if refreshing
+          setProfiles(formattedProfiles);
+          setCurrentIndex(0); // Reset to first profile
+          setCurrentPhotoIndex(0); // Reset photo index
+        } else {
+          // Append new data to existing profiles
+          setProfiles((prev) => [...prev, ...formattedProfiles]);
+        }
+
+        // Update the offset for next page load
+        setOffset(
+          refresh ? formattedProfiles.length : offset + formattedProfiles.length
+        );
+
+        // Update if we have more data to load
+        setHasMore(hasMoreData);
+      } catch (err) {
+        console.error(`Failed to fetch ${discoveryMode}:`, err);
+        setError(`Failed to load ${discoveryMode}`);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [discoveryMode, offset]
+  );
+
+  // Initial fetch when component mounts or discovery mode changes
+  useEffect(() => {
+    fetchDiscoveryData(true);
+  }, [discoveryMode, fetchDiscoveryData]);
+
+  // Function to toggle between users and groups
+  const toggleDiscoveryMode = () => {
+    setDiscoveryMode((prev) => (prev === "users" ? "groups" : "users"));
+  };
 
   const onGestureEvent = Animated.event(
     [{ nativeEvent: { translationX: position.x, translationY: position.y } }],
@@ -127,7 +154,7 @@ export default function DiscoverScreen() {
     }
   };
 
-  const handleSwipe = (direction: SwipeDirection) => {
+  const handleSwipe = async (direction: SwipeDirection) => {
     const x = direction === "right" ? SCREEN_WIDTH : -SCREEN_WIDTH;
     Animated.timing(position, {
       toValue: { x, y: 0 },
@@ -135,7 +162,42 @@ export default function DiscoverScreen() {
       useNativeDriver: false,
     }).start(() => {
       position.setValue({ x: 0, y: 0 });
-      setCurrentIndex((prev) => prev + 1);
+
+      // If we've swiped on a profile, send the swipe to the backend
+      if (currentIndex < profiles.length) {
+        const currentProfile = profiles[currentIndex];
+        // Send swipe to backend
+        apiService
+          .post("/swipes", {
+            swipedUserId: currentProfile.id,
+            direction,
+          })
+          .then((response: any) => {
+            // Check if there's a match
+            if (response.isMatch) {
+              // Trigger haptic feedback for a match
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success
+              );
+
+              // Set match details and show modal
+              setMatchDetails(response.matchDetails);
+              setMatchModal(true);
+            }
+          })
+          .catch((err) => {
+            console.error("Failed to record swipe:", err);
+          });
+      }
+
+      setCurrentIndex((prev) => {
+        // If we're at the last profile and there are more to load
+        if (prev === profiles.length - 3 && hasMore) {
+          // Load more profiles when we're close to the end
+          fetchDiscoveryData(false);
+        }
+        return prev + 1;
+      });
       setCurrentPhotoIndex(0);
     });
   };
@@ -159,11 +221,65 @@ export default function DiscoverScreen() {
     );
   };
 
-  if (currentIndex >= profiles.length) {
+  const onRefresh = () => {
+    fetchDiscoveryData(true);
+  };
+
+  // Handle sending a message to the new match
+  const handleMessageMatch = () => {
+    setMatchModal(false);
+    if (matchDetails?._id) {
+      // Navigate to messages with the match ID
+      router.push(`/messages/${matchDetails._id}`);
+    }
+  };
+
+  // Close the match modal
+  const handleCloseMatchModal = () => {
+    setMatchModal(false);
+  };
+
+  if (loading && !refreshing) {
     return (
-      <View style={styles.container}>
-        <EmptyState />
+      <View style={[styles.container, styles.centeredContent]}>
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
+    );
+  }
+
+  if (error && profiles.length === 0) {
+    return (
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[
+          styles.centeredContent,
+          styles.containerContent,
+          { flex: 1 },
+        ]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <EmptyState errorMessage={error} />
+      </ScrollView>
+    );
+  }
+
+  if (profiles.length === 0 || currentIndex >= profiles.length) {
+    return (
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[
+          styles.centeredContent,
+          styles.containerContent,
+          { flex: 1 },
+        ]}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <EmptyState />
+      </ScrollView>
     );
   }
 
@@ -172,6 +288,53 @@ export default function DiscoverScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
+
+      <View style={styles.headerContainer}>
+        <TouchableOpacity
+          style={[
+            styles.modeToggle,
+            discoveryMode === "groups" ? styles.activeMode : {},
+          ]}
+          onPress={toggleDiscoveryMode}
+        >
+          <FontAwesome
+            name="users"
+            size={18}
+            color={discoveryMode === "groups" ? "#FF4C67" : "#999"}
+          />
+          <Text
+            style={[
+              styles.modeText,
+              discoveryMode === "groups" ? styles.activeModeText : {},
+            ]}
+          >
+            Groups
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.modeToggle,
+            discoveryMode === "users" ? styles.activeMode : {},
+          ]}
+          onPress={toggleDiscoveryMode}
+        >
+          <FontAwesome
+            name="user"
+            size={18}
+            color={discoveryMode === "users" ? "#FF4C67" : "#999"}
+          />
+          <Text
+            style={[
+              styles.modeText,
+              discoveryMode === "users" ? styles.activeModeText : {},
+            ]}
+          >
+            People
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.cardContainer}>
         <SwipeCard
           profile={currentProfile}
@@ -182,11 +345,66 @@ export default function DiscoverScreen() {
           cardStyle={getCardStyle()}
         />
       </View>
+
       <View style={styles.actionButtonContainer}>
         <ActionButtons onSwipe={handleSwipe} />
       </View>
+
       {/* Add a spacer to prevent overlap with tab bar */}
       <View style={styles.bottomSpacer} />
+
+      {/* Match notification modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={matchModal}
+        onRequestClose={handleCloseMatchModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.matchModalContent}>
+            <Text style={styles.matchTitle}>It's a Match!</Text>
+            <Text style={styles.matchSubtitle}>
+              You and {matchDetails?.matchedUser?.name} have liked each other
+            </Text>
+
+            <View style={styles.matchImages}>
+              <Image
+                source={{
+                  uri:
+                    matchDetails?.currentUser?.photos?.[0] ||
+                    "https://via.placeholder.com/150",
+                }}
+                style={styles.matchImage}
+              />
+              <View style={styles.matchIconContainer}>
+                <FontAwesome name="heart" size={30} color="#FF4C67" />
+              </View>
+              <Image
+                source={{
+                  uri:
+                    matchDetails?.matchedUser?.photos?.[0] ||
+                    "https://via.placeholder.com/150",
+                }}
+                style={styles.matchImage}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.sendMessageButton}
+              onPress={handleMessageMatch}
+            >
+              <Text style={styles.sendMessageText}>Send Message</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.keepSwipingButton}
+              onPress={handleCloseMatchModal}
+            >
+              <Text style={styles.keepSwipingText}>Keep Swiping</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -197,7 +415,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
     paddingTop: 5, // Reduced top padding
     paddingHorizontal: 20,
-    justifyContent: "space-between", // Distribute space evenly
+  },
+  containerContent: {
+    justifyContent: "space-between", // Moved from container to containerContent
   },
   cardContainer: {
     flex: 1,
@@ -210,5 +430,116 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: Platform.OS === "ios" ? 60 : 50, // Add space at bottom to prevent tab bar overlap
+  },
+  centeredContent: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingVertical: 10,
+    marginBottom: 10,
+    marginTop: 10, // Add some top margin
+    zIndex: 10, // Ensure it's above other content
+    backgroundColor: "#f5f5f5", // Match background color
+    borderRadius: 25, // Round the corners slightly
+    alignSelf: "center", // Center horizontally
+  },
+  modeToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 5,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
+  },
+  activeMode: {
+    backgroundColor: "#FFE5E5",
+  },
+  modeText: {
+    marginLeft: 5,
+    fontSize: 16,
+    color: "#999",
+  },
+  activeModeText: {
+    color: "#FF4C67",
+    fontWeight: "600",
+  },
+  // Match modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.7)",
+  },
+  matchModalContent: {
+    width: "85%",
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 25,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  matchTitle: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#FF4C67",
+    marginBottom: 10,
+  },
+  matchSubtitle: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  matchImages: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  matchImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 2,
+    borderColor: "#FF4C67",
+  },
+  matchIconContainer: {
+    marginHorizontal: 10,
+  },
+  sendMessageButton: {
+    width: "100%",
+    backgroundColor: "#FF4C67",
+    paddingVertical: 12,
+    borderRadius: 25,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  sendMessageText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  keepSwipingButton: {
+    width: "100%",
+    backgroundColor: "transparent",
+    paddingVertical: 12,
+    borderRadius: 25,
+    alignItems: "center",
+  },
+  keepSwipingText: {
+    color: "#666",
+    fontSize: 16,
+    fontWeight: "500",
   },
 });

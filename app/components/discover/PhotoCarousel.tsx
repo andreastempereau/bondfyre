@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome } from "@expo/vector-icons";
+import { MotiView } from "moti";
 
 interface PhotoCarouselProps {
   photos: string[];
@@ -23,6 +24,7 @@ const CARD_WIDTH = SCREEN_WIDTH - 40;
 // Fixed sample images that definitely work - use these as fallbacks
 const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8MjF8fGdyb3VwJTIwb2YlMjBwZW9wbGV8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
+  "https://images.unsplash.com/photo-1511988617509-a57c8a288659?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8NXx8Z3JvdXAlMjBvZiUyMGZyaWVuZHN8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
   "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8Z3JvdXAlMjBvZiUyMGZyaWVuZHN8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
 ];
 
@@ -34,6 +36,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [imageAttempts, setImageAttempts] = useState(0);
+  const [networkError, setNetworkError] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cache of failed image URLs to avoid repeated failed attempts
@@ -66,9 +69,10 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
     // Start fresh loading state
     setLoading(true);
     setError(false);
+    setNetworkError(false);
     setImageAttempts(0);
 
-    // Set new timeout
+    // Set new timeout - shorter timeout for better UX
     timeoutRef.current = setTimeout(() => {
       console.log("Image loading timed out");
       setLoading(false);
@@ -80,7 +84,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
         newSet.add(currentImageUrl);
         return newSet;
       });
-    }, 5000); // Reduced timeout for better UX
+    }, 4000); // Reduced timeout for better UX
   }, [currentPhotoIndex, photos]);
 
   // Determine image source based on error state
@@ -92,8 +96,8 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
   const handleImageError = () => {
     console.log("Image load error");
 
-    // Only retry up to 2 times
-    if (imageAttempts < 2) {
+    // Only retry up to 1 time
+    if (imageAttempts < 1) {
       setImageAttempts((prev) => prev + 1);
 
       // Clear the timeout and create a new one
@@ -106,7 +110,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
         console.log(`Retrying image load, attempt ${imageAttempts + 1}`);
         setLoading(true);
         setError(false);
-      }, 1000);
+      }, 800);
     } else {
       // After several attempts, mark as failed and use fallback
       setLoading(false);
@@ -119,6 +123,13 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
         return newSet;
       });
     }
+  };
+
+  const handleNetworkError = () => {
+    setNetworkError(true);
+    setTimeout(() => {
+      setNetworkError(false);
+    }, 3000);
   };
 
   return (
@@ -153,16 +164,26 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
         />
 
         {loading && (
-          <View style={styles.loadingContainer}>
+          <MotiView
+            style={styles.loadingContainer}
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ type: "timing", duration: 300 }}
+          >
             <ActivityIndicator size="large" color="#ffffff" />
-          </View>
+          </MotiView>
         )}
 
         {error && (
-          <View style={styles.errorContainer}>
+          <MotiView
+            style={styles.errorContainer}
+            from={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: "spring", damping: 15 }}
+          >
             <FontAwesome name="image" size={32} color="#ffffff" />
             <Text style={styles.errorText}>Using backup image</Text>
-          </View>
+          </MotiView>
         )}
 
         <LinearGradient
@@ -182,6 +203,19 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
           />
         ))}
       </View>
+
+      {networkError && (
+        <MotiView
+          style={styles.networkErrorContainer}
+          from={{ opacity: 0, translateY: -20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          exit={{ opacity: 0, translateY: -20 }}
+          transition={{ type: "timing", duration: 300 }}
+        >
+          <FontAwesome name="exclamation-triangle" size={16} color="white" />
+          <Text style={styles.networkErrorText}>Network connection issue</Text>
+        </MotiView>
+      )}
     </View>
   );
 };
@@ -210,17 +244,39 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.2)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   errorContainer: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.5)",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
   errorText: {
     color: "white",
     fontWeight: "bold",
     marginTop: 10,
+  },
+  networkErrorContainer: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: "rgba(220, 53, 69, 0.85)",
+    borderRadius: 8,
+    padding: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 100,
+  },
+  networkErrorText: {
+    color: "white",
+    marginLeft: 8,
+    fontWeight: "600",
   },
   photoIndicator: {
     position: "absolute",
@@ -248,6 +304,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: "30%",
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
 });
 

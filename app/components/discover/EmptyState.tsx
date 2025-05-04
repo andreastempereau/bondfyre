@@ -5,18 +5,20 @@ import { FontAwesome } from "@expo/vector-icons";
 interface EmptyStateProps {
   title?: string;
   subtitle?: string;
-  icon?: string;
+  icon?: keyof typeof FontAwesome.glyphMap;
+  errorMessage?: string;
 }
 
 const EmptyState: React.FC<EmptyStateProps> = ({
   title = "No more groups to show!",
   subtitle = "Check back later for new matches!",
   icon = "compass",
+  errorMessage,
 }) => {
   return (
     <View style={styles.container}>
       <FontAwesome name={icon} size={64} color="#999" />
-      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.title}>{errorMessage || title}</Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
     </View>
   );
@@ -24,10 +26,11 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    width: "100%",
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
+    minHeight: 300,
   },
   title: {
     fontSize: 24,

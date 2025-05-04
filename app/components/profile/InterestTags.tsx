@@ -3,16 +3,36 @@ import { View, Text, StyleSheet } from "react-native";
 
 interface InterestTagsProps {
   interests: string[];
+  highlightInterests?: string[]; // New prop to highlight matching interests
 }
 
-const InterestTags: React.FC<InterestTagsProps> = ({ interests }) => {
+const InterestTags: React.FC<InterestTagsProps> = ({
+  interests,
+  highlightInterests = [],
+}) => {
   return (
     <View style={styles.interestsContainer}>
-      {interests.map((interest, index) => (
-        <View key={index} style={styles.interestTag}>
-          <Text style={styles.interestText}>{interest}</Text>
-        </View>
-      ))}
+      {interests.map((interest, index) => {
+        const isMatching = highlightInterests.includes(interest);
+        return (
+          <View
+            key={index}
+            style={[
+              styles.interestTag,
+              isMatching && styles.matchingInterestTag,
+            ]}
+          >
+            <Text
+              style={[
+                styles.interestText,
+                isMatching && styles.matchingInterestText,
+              ]}
+            >
+              {interest}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 };
@@ -35,10 +55,19 @@ const styles = StyleSheet.create({
     shadowRadius: 1,
     elevation: 1,
   },
+  matchingInterestTag: {
+    backgroundColor: "#FFE5E5",
+    borderColor: "#FFCDD2",
+    borderWidth: 1,
+  },
   interestText: {
     color: "#333",
     fontSize: 13,
     fontWeight: "500",
+  },
+  matchingInterestText: {
+    color: "#FF4C67",
+    fontWeight: "600",
   },
 });
 

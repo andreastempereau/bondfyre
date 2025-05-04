@@ -110,3 +110,5 @@ export const deleteImage = async (
     };
   }
 };
+
+export default {};

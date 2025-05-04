@@ -85,6 +85,11 @@ export interface GroupProfile {
   bio: string;
   interests: string[];
   photos: string[];
+  // Additional discovery data
+  relevanceScore?: number;
+  matchingInterests?: string[];
+  mutualConnections?: number;
+  isGroupConnection?: boolean;
 }
 
 export interface SwipeCardProps {

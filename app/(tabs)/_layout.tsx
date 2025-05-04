@@ -3,6 +3,7 @@ import React from "react";
 import { FontAwesome } from "@expo/vector-icons";
 import { View, StyleSheet, Platform } from "react-native";
 import { BlurView } from "expo-blur";
+import { MotiView } from "moti";
 
 const TabBarIcon = ({
   name,
@@ -51,6 +52,7 @@ export default function TabLayout() {
           fontWeight: "bold",
           fontSize: 22,
         },
+        animation: "fade",
       }}
     >
       <Tabs.Screen

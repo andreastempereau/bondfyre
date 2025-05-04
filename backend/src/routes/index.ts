@@ -4,6 +4,7 @@ import groupRoutes from "./groupRoutes";
 import matchRoutes from "./matchRoutes";
 import messageRoutes from "./messageRoutes";
 import swipeRoutes from "./swipeRoutes";
+import discoveryRoutes from "./discoveryRoutes";
 
 export {
   authRoutes,
@@ -12,4 +13,5 @@ export {
   matchRoutes,
   messageRoutes,
   swipeRoutes,
+  discoveryRoutes,
 };
