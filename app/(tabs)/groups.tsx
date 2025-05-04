@@ -11,10 +11,17 @@ import Text from "@/app/components/ui/Text";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
-import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+  ActivityIndicator,
+} from "react-native";
 import { useAuth } from "../contexts/AuthContext";
 import { useThemeColor } from "../hooks/useThemeColor";
 import { apiService } from "../services/apiService";
+import { UnauthenticatedView } from "../components/profile/UnauthenticatedView";
 
 // Import GroupSettingsModal directly if it exists
 import GroupSettingsModal from "../components/modals/GroupSettingsModal";
@@ -22,7 +29,7 @@ import GroupSettingsModal from "../components/modals/GroupSettingsModal";
 import { Group } from "../types/entities";
 
 export default function GroupsScreen() {
-  const { token, user } = useAuth();
+  const { token, user, loading: authLoading } = useAuth();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -40,6 +47,21 @@ export default function GroupsScreen() {
 
   // Constants
   const MAX_GROUPS_PER_USER = 2;
+
+  // If authentication is still loading, show a loading indicator
+  if (authLoading) {
+    return (
+      <ThemedView style={[styles.container, styles.centeredContent]}>
+        <ActivityIndicator size="large" color="#FF6B6B" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </ThemedView>
+    );
+  }
+
+  // If user is not authenticated, show the unauthenticated view
+  if (!user) {
+    return <UnauthenticatedView />;
+  }
 
   const fetchGroups = useCallback(
     async (showRefreshIndicator = false) => {
@@ -241,6 +263,15 @@ export default function GroupsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centeredContent: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#666",
   },
   buttonsRow: {
     flexDirection: "row",

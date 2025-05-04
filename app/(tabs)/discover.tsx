@@ -26,11 +26,14 @@ import { apiService } from "../services/apiService";
 import { FontAwesome } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import { useAuth } from "../contexts/AuthContext";
+import { UnauthenticatedView } from "../components/profile/UnauthenticatedView";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
 
 export default function DiscoverScreen() {
+  const { user, loading: authLoading } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [profiles, setProfiles] = useState<GroupProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +51,21 @@ export default function DiscoverScreen() {
   const [matchModal, setMatchModal] = useState(false);
   const [matchDetails, setMatchDetails] = useState<any>(null);
   const router = useRouter();
+
+  // If authentication is still loading, show a loading indicator
+  if (authLoading) {
+    return (
+      <View style={[styles.container, styles.centeredContent]}>
+        <ActivityIndicator size="large" color="#FF6B6B" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  // If user is not authenticated, show the unauthenticated view
+  if (!user) {
+    return <UnauthenticatedView />;
+  }
 
   const fetchDiscoveryData = useCallback(
     async (refresh = false) => {
@@ -541,5 +559,10 @@ const styles = StyleSheet.create({
     color: "#666",
     fontSize: 16,
     fontWeight: "500",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#666",
   },
 });

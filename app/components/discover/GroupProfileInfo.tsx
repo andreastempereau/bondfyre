@@ -122,14 +122,14 @@ const GroupProfileInfo: React.FC<GroupProfileInfoProps> = ({ profile }) => {
                   {member.name}{" "}
                   <Text style={styles.memberAge}>{member.age}</Text>
                 </Text>
-                <Text style={styles.memberGender}>
+                <View style={styles.memberGenderContainer}>
                   <FontAwesome
                     name={member.gender === "male" ? "mars" : "venus"}
                     size={12}
                     color="#666"
                   />
-                  <Text> {member.gender}</Text>
-                </Text>
+                  <Text style={styles.memberGender}> {member.gender}</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -255,11 +255,13 @@ const styles = StyleSheet.create({
   memberAge: {
     fontWeight: "400",
   },
+  memberGenderContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
   memberGender: {
     fontSize: 12,
     color: "#666",
-    flexDirection: "row",
-    alignItems: "center",
   },
   bio: {
     fontSize: 14,
