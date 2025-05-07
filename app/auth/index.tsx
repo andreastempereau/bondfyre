@@ -14,9 +14,9 @@ export default function AuthScreen() {
         source={require("../../assets/images/icon.png")}
         style={styles.logoImage}
       />
-      <Text style={styles.welcomeTitle}>Welcome to Bondfyre</Text>
+      <Text style={styles.welcomeTitle}>Welcome to 2UO</Text>
       <Text style={styles.welcomeText}>
-        Connect with like-minded people and join communities
+        Connect with your friends and go on a double-date.
       </Text>
 
       <TouchableOpacity

@@ -17,7 +17,7 @@ import { useSignup } from "../../contexts/SignupContext";
 import { StepContainer } from "../../components/forms/StepContainer";
 import { Ionicons, MaterialIcons, FontAwesome } from "@expo/vector-icons";
 import { MotiView } from "moti";
-import apiService from "../../services/apiService";
+import { apiService } from "../../services/apiService";
 
 // Friend data structure
 interface Friend {
@@ -321,7 +321,7 @@ export default function FriendsStep() {
             <Text style={styles.noResultsText}>No users found.</Text>
             <Text style={styles.noResultsSubText}>
               Try a different search term or invite your friends to join
-              BondFyre.
+              2UO.
             </Text>
           </View>
         )}
