@@ -2,21 +2,25 @@ import React from "react";
 import { Stack } from "expo-router";
 import { SignupProvider } from "../../contexts/SignupContext";
 
-export default function SignUpStepsLayout() {
+export default function SignupLayout() {
   return (
     <SignupProvider>
       <Stack
         screenOptions={{
           headerShown: false,
           animation: "slide_from_right",
-          animationDuration: 300,
-          gestureEnabled: true,
-          gestureDirection: "horizontal",
-          presentation: "card",
-          cardStyle: { backgroundColor: "white" },
-          contentStyle: { backgroundColor: "white" },
         }}
-      />
+      >
+        <Stack.Screen name="email" />
+        <Stack.Screen name="name" />
+        <Stack.Screen name="password" />
+        <Stack.Screen name="age" />
+        <Stack.Screen name="gender" />
+        <Stack.Screen name="interests" />
+        <Stack.Screen name="photos" />
+        <Stack.Screen name="friends" />
+        <Stack.Screen name="complete" />
+      </Stack>
     </SignupProvider>
   );
 }

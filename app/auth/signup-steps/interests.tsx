@@ -38,8 +38,16 @@ const interestSuggestions = [
 ];
 
 export default function InterestsStep() {
-  const { data, updateData, setCurrentStep, getNextStep } = useSignup();
-  const [interests, setInterests] = useState<string[]>(data.interests || []);
+  const {
+    signupData,
+    updateSignupData,
+    setCurrentStep,
+    getNextStep,
+    getStepByName,
+  } = useSignup();
+  const [interests, setInterests] = useState<string[]>(
+    signupData.interests || []
+  );
   const [currentInput, setCurrentInput] = useState("");
   const [isFocused, setIsFocused] = useState(false);
 
@@ -48,8 +56,10 @@ export default function InterestsStep() {
   const inputScaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    setCurrentStep(5);
-  }, [setCurrentStep]);
+    // Set current step using the step ID from context
+    const interestsStep = getStepByName("interests");
+    setCurrentStep(interestsStep.id);
+  }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
     Animated.spring(iconAnim, {
@@ -87,7 +97,7 @@ export default function InterestsStep() {
 
   const handleNext = async () => {
     Keyboard.dismiss();
-    updateData("interests", interests);
+    updateSignupData("interests", interests);
 
     // Create a bounce effect before navigation
     Animated.sequence([
@@ -103,8 +113,8 @@ export default function InterestsStep() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // Use getNextStep to navigate to the next step in the sequence
-      router.push(getNextStep(5));
+      // Use getNextStep to navigate to the next step - no need to specify current step ID
+      router.push(getNextStep());
     });
   };
 
@@ -116,8 +126,6 @@ export default function InterestsStep() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <StepContainer
-          title="What are your interests?"
-          subtitle="Add some tags to help us find your matches (optional)"
           onNext={handleNext}
           nextDisabled={false} // Interests are optional
           nextButtonText="Continue"

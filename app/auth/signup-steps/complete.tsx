@@ -18,7 +18,7 @@ import { useSignup } from "../../contexts/SignupContext";
 const { width } = Dimensions.get("window");
 
 export default function CompleteStep() {
-  const { data, setCurrentStep } = useSignup();
+  const { signupData, setCurrentStep } = useSignup();
   const { signUp } = useAuth();
   const animationRef = useRef<LottieView>(null);
   const [loading, setLoading] = useState(false);
@@ -64,21 +64,22 @@ export default function CompleteStep() {
     try {
       // Parse interests as array if it's a string
       const interestsArray =
-        typeof data.interests === "string" && data.interests
-          ? (data.interests as string)
+        typeof signupData.interests === "string" && signupData.interests
+          ? (signupData.interests as string)
               .split(",")
               .map((interest) => interest.trim())
               .filter((interest) => interest.length > 0)
-          : Array.isArray(data.interests)
-          ? data.interests
+          : Array.isArray(signupData.interests)
+          ? signupData.interests
           : [];
 
-      await signUp(data.email, data.password, data.name, {
-        bio: data.bio || "Hello, I'm new here!",
-        age: parseInt(data.age) || 0,
-        gender: data.gender,
+      // Only use one method to create the user - the AuthContext's signUp
+      await signUp(signupData.email, signupData.password, signupData.name, {
+        bio: signupData.bio || "Hello, I'm new here!",
+        age: parseInt(signupData.age) || 0,
+        gender: signupData.gender,
         interests: interestsArray,
-        photos: data.photos || [],
+        photos: signupData.photos || [],
       });
 
       // Show success state
@@ -114,7 +115,7 @@ export default function CompleteStep() {
       <StepContainer
         title="Almost there!"
         subtitle="Review your information and create your account"
-        nextLabel={loading ? "Creating..." : "Create Account"}
+        nextButtonText={loading ? "Creating..." : "Create Account"}
         onNext={handleSignUp}
         nextDisabled={loading}
       >
@@ -122,9 +123,9 @@ export default function CompleteStep() {
           {/* Profile Summary */}
           <View style={styles.profileHeader}>
             <View style={styles.avatarContainer}>
-              {data.photos && data.photos.length > 0 ? (
+              {signupData.photos && signupData.photos.length > 0 ? (
                 <Animated.Image
-                  source={{ uri: data.photos[0] }}
+                  source={{ uri: signupData.photos[0] }}
                   style={styles.avatar}
                   sharedTransitionTag="profile-image"
                 />
@@ -139,8 +140,8 @@ export default function CompleteStep() {
               )}
             </View>
 
-            <Text style={styles.name}>{data.name}</Text>
-            <Text style={styles.email}>{data.email}</Text>
+            <Text style={styles.name}>{signupData.name}</Text>
+            <Text style={styles.email}>{signupData.email}</Text>
 
             <View style={styles.detailsContainer}>
               <View style={styles.detailItem}>
@@ -149,7 +150,9 @@ export default function CompleteStep() {
                   size={16}
                   color="#666"
                 />
-                <Text style={styles.detailText}>{data.age} years old</Text>
+                <Text style={styles.detailText}>
+                  {signupData.age} years old
+                </Text>
               </View>
 
               <View style={styles.detailItem}>
@@ -159,14 +162,15 @@ export default function CompleteStep() {
                   color="#666"
                 />
                 <Text style={styles.detailText}>
-                  {data.gender.charAt(0).toUpperCase() + data.gender.slice(1)}
+                  {signupData.gender.charAt(0).toUpperCase() +
+                    signupData.gender.slice(1)}
                 </Text>
               </View>
             </View>
           </View>
 
-          {/* Photo count */}
-          {data.photos && data.photos.length > 0 && (
+          {/* Photo count or missing photos message */}
+          {signupData.photos && signupData.photos.length > 0 ? (
             <View style={styles.photoCountContainer}>
               <MaterialCommunityIcons
                 name="image-multiple"
@@ -174,8 +178,19 @@ export default function CompleteStep() {
                 color="#666"
               />
               <Text style={styles.photoCountText}>
-                {data.photos.length} photo{data.photos.length !== 1 ? "s" : ""}{" "}
-                added
+                {signupData.photos.length} photo
+                {signupData.photos.length !== 1 ? "s" : ""} added
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.photoCountContainer}>
+              <MaterialCommunityIcons
+                name="information-outline"
+                size={16}
+                color="#666"
+              />
+              <Text style={styles.photoCountText}>
+                You can add photos later from your profile
               </Text>
             </View>
           )}

@@ -14,33 +14,33 @@ import { StatusBar } from "expo-status-bar";
 import { router } from "expo-router";
 
 interface StepContainerProps {
-  title: string;
-  subtitle?: string;
   children: ReactNode;
   showBackButton?: boolean;
   onNext?: () => void | Promise<void>;
   nextDisabled?: boolean;
-  nextLabel?: string;
-  nextButtonText?: string; // Added as alias for nextLabel
+  nextButtonText?: string;
+  title?: string; // Made optional since we'll use step info from context
+  subtitle?: string; // Made optional since we'll use step info from context
 }
 
 const { width } = Dimensions.get("window");
 
 export function StepContainer({
-  title,
-  subtitle,
+  title: propTitle,
+  subtitle: propSubtitle,
   children,
   showBackButton = true,
   onNext,
   nextDisabled = false,
-  nextLabel = "Next",
-  nextButtonText, // Added as alias
+  nextButtonText = "Next",
 }: StepContainerProps) {
-  const { currentStep, totalSteps } = useSignup();
+  const { currentStep, totalSteps, currentStepInfo, getPreviousStep } =
+    useSignup();
   const progressWidth = width * 0.8 * (currentStep / totalSteps);
 
-  // Use nextButtonText if provided, otherwise use nextLabel
-  const buttonText = nextButtonText || nextLabel;
+  // Use props if provided, otherwise use titles from currentStepInfo
+  const title = propTitle || currentStepInfo.title;
+  const subtitle = propSubtitle || currentStepInfo.subtitle;
 
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -75,7 +75,8 @@ export function StepContainer({
         useNativeDriver: true,
       }),
     ]).start(() => {
-      router.back();
+      const previousPath = getPreviousStep();
+      router.push(previousPath);
     });
   };
 
@@ -90,7 +91,7 @@ export function StepContainer({
           </TouchableOpacity>
         )}
         <Text style={styles.stepText}>
-          Step {currentStep} of {totalSteps}
+          Step {currentStep} of {totalSteps - 1}
         </Text>
       </View>
 
@@ -125,7 +126,7 @@ export function StepContainer({
             onPress={onNext}
             disabled={nextDisabled}
           >
-            <Text style={styles.nextButtonText}>{buttonText}</Text>
+            <Text style={styles.nextButtonText}>{nextButtonText}</Text>
             <MaterialCommunityIcons
               name="arrow-right"
               size={20}

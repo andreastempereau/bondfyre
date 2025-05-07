@@ -1,6 +1,6 @@
 import express from "express";
 import { auth } from "../middleware/auth";
-import { createSwipe, getSwipes, getPotentialMatches } from "../controllers";
+import { createSwipe, getSwipes } from "../controllers";
 
 const router = express.Router();
 
@@ -14,6 +14,6 @@ router.post("/", createSwipe);
 router.get("/", getSwipes);
 
 // Get potential matches for the authenticated user
-router.get("/potential", getPotentialMatches);
+// router.get("/potential", getPotentialMatches);
 
 export default router;

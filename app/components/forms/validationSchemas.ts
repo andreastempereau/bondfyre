@@ -37,6 +37,8 @@ export const signUpSchema = yup.object({
   gender: yup.string().required("Gender is required"),
   bio: yup.string().optional(),
   interests: yup.string().optional(),
+  phoneNumber: yup.string().optional(),
+  username: yup.string().optional(),
 });
 
 // Profile Edit validation schema
@@ -52,6 +54,8 @@ export const profileEditSchema = yup.object({
     .matches(/^\d+$/, "Age must be a number"),
   gender: yup.string().required("Gender is required"),
   interests: yup.string().optional(),
+  phoneNumber: yup.string().optional(),
+  username: yup.string().optional(),
 });
 
 // Types based on schemas

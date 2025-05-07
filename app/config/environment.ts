@@ -13,9 +13,9 @@ const getApiUrl = () => {
   if (__DEV__) {
     // Use different URLs based on platform
     if (Platform.OS === "android") {
-      return "http://10.0.2.2:3000/api"; // Android emulator needs this special IP
+      return "http://10.0.2.2:8080/api"; // Android emulator needs this special IP
     } else {
-      return "http://localhost:3000 /api"; // iOS simulator and web can use localhost
+      return "http://localhost:8080/api"; // iOS simulator and web can use localhost
     }
   }
 

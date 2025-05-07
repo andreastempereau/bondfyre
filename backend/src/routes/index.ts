@@ -4,6 +4,8 @@ import groupRoutes from "./groupRoutes";
 import matchRoutes from "./matchRoutes";
 import messageRoutes from "./messageRoutes";
 import swipeRoutes from "./swipeRoutes";
+import friendRoutes from "./friendRoutes";
+import groupChatRoutes from "./groupChatRoutes";
 import discoveryRoutes from "./discoveryRoutes";
 
 export {
@@ -13,5 +15,7 @@ export {
   matchRoutes,
   messageRoutes,
   swipeRoutes,
+  friendRoutes,
+  groupChatRoutes,
   discoveryRoutes,
 };

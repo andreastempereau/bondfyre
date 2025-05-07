@@ -66,11 +66,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="groups"
+        name="friends"
         options={{
-          title: "Groups",
+          title: "Friends",
           headerTitleAlign: "center",
-          tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name="user-plus" color={color} />
+          ),
         }}
       />
       <Tabs.Screen

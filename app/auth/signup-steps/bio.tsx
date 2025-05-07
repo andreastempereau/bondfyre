@@ -16,8 +16,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { MotiView } from "moti";
 
 export default function BioStep() {
-  const { data, updateData, setCurrentStep, getNextStep } = useSignup();
-  const [bio, setBio] = useState(data.bio || "");
+  const {
+    signupData,
+    updateSignupData,
+    setCurrentStep,
+    getNextStep,
+    getStepByName,
+  } = useSignup();
+  const [bio, setBio] = useState(signupData.bio || "");
   const [isFocused, setIsFocused] = useState(false);
 
   // Animation values
@@ -25,8 +31,10 @@ export default function BioStep() {
   const inputScaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    setCurrentStep(4);
-  }, [setCurrentStep]);
+    // Set current step using the step ID from context
+    const bioStep = getStepByName("bio");
+    setCurrentStep(bioStep.id);
+  }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
     Animated.spring(iconAnim, {
@@ -46,7 +54,7 @@ export default function BioStep() {
 
   const handleNext = async () => {
     Keyboard.dismiss();
-    updateData("bio", bio);
+    updateSignupData("bio", bio);
 
     // Create a bounce effect before navigation
     Animated.sequence([
@@ -62,8 +70,8 @@ export default function BioStep() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // Use getNextStep to navigate to the next step in the sequence
-      router.push(getNextStep(4));
+      // Use getNextStep to navigate to the next step - no need to specify current step ID
+      router.push(getNextStep());
     });
   };
 
@@ -75,8 +83,6 @@ export default function BioStep() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <StepContainer
-          title="Tell us about yourself"
-          subtitle="Write a short bio (optional)"
           onNext={handleNext}
           nextDisabled={false} // Bio is optional
           nextButtonText="Continue"

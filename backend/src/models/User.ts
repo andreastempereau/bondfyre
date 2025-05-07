@@ -1,5 +1,5 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import bcrypt from 'bcryptjs';
+import mongoose, { Document, Schema } from "mongoose";
+import bcrypt from "bcryptjs";
 
 export interface IUser extends Document {
   name: string;
@@ -10,28 +10,39 @@ export interface IUser extends Document {
   bio?: string;
   interests: string[];
   photos: string[];
+  friends: mongoose.Types.ObjectId[];
+  friendRequests: mongoose.Types.ObjectId[];
+  phoneNumber?: string;
+  username?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
-const userSchema = new Schema<IUser>({
-  name: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  age: { type: Number },
-  gender: { type: String },
-  bio: { type: String, default: '' },
-  interests: { type: [String], default: [] },
-  photos: { type: [String], default: [] }
-}, {
-  timestamps: true
-});
+const userSchema = new Schema<IUser>(
+  {
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    age: { type: Number },
+    gender: { type: String },
+    bio: { type: String, default: "" },
+    interests: { type: [String], default: [] },
+    photos: { type: [String], default: [] },
+    friends: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }],
+    friendRequests: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }],
+    phoneNumber: { type: String },
+    username: { type: String, sparse: true, unique: true },
+  },
+  {
+    timestamps: true,
+  }
+);
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -42,8 +53,10 @@ userSchema.pre('save', async function(next) {
 });
 
 // Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+userSchema.methods.comparePassword = async function (
+  candidatePassword: string
+): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-export const User = mongoose.model<IUser>('User', userSchema); 
+export const User = mongoose.model<IUser>("User", userSchema);

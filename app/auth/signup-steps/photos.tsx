@@ -1,274 +1,171 @@
-import React, { useState, useRef, useEffect } from "react";
-import {
-  StyleSheet,
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  ScrollView,
-  Platform,
-  Alert,
-} from "react-native";
+import React, { useState, useEffect } from "react";
 import { router } from "expo-router";
+import {
+  View,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Text,
+  Alert,
+  FlatList,
+} from "react-native";
 import { useSignup } from "../../contexts/SignupContext";
 import { StepContainer } from "../../components/forms/StepContainer";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { MotiView } from "moti";
+import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
+import { uploadImage } from "../../services/storageService";
+import { MotiView } from "moti";
 
 export default function PhotosStep() {
-  const { data, updateData, setCurrentStep, getNextStep } = useSignup();
-  const [photos, setPhotos] = useState<string[]>(data.photos || []);
-  const [loading, setLoading] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const {
+    signupData,
+    updateSignupData,
+    setCurrentStep,
+    getNextStep,
+    getStepByName,
+  } = useSignup();
+  const [photos, setPhotos] = useState<string[]>(signupData.photos || []);
+  const [uploading, setUploading] = useState(false);
+  const MAX_PHOTOS = 6;
 
   useEffect(() => {
-    setCurrentStep(8); // Update to match step ID in SIGNUP_STEPS
+    // Set current step using the step ID from context
+    const photosStep = getStepByName("photos");
+    setCurrentStep(photosStep.id);
+  }, [setCurrentStep, getStepByName]);
 
-    // Request permissions on component mount
-    (async () => {
-      if (Platform.OS !== "web") {
-        const { status } =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== "granted") {
-          Alert.alert(
-            "Permission Required",
-            "Sorry, we need camera roll permissions to upload photos!",
-            [{ text: "OK" }]
-          );
-        }
-      }
-    })();
-  }, []);
+  // Photos are now optional - users can continue without adding any photos
+  const canContinue = true;
+  const canAddMore = photos.length < MAX_PHOTOS;
 
   const pickImage = async () => {
-    try {
-      setLoading(true);
+    if (!canAddMore) {
+      Alert.alert(
+        "Maximum Photos",
+        `You can only upload up to ${MAX_PHOTOS} photos.`
+      );
+      return;
+    }
 
-      let result = await ImagePicker.launchImageLibraryAsync({
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        aspect: [4, 3],
+        aspect: [4, 5],
         quality: 0.8,
-        allowsMultipleSelection: false,
       });
 
-      if (!result.canceled && result.assets && result.assets[0]) {
-        const selectedAsset = result.assets[0];
-
-        // Check file size (limit to 5MB)
-        const fileInfo = await FileSystem.getInfoAsync(selectedAsset.uri);
-        const MAX_SIZE = 5 * 1024 * 1024; // 5MB
-
-        if (fileInfo.exists && fileInfo.size && fileInfo.size > MAX_SIZE) {
-          Alert.alert(
-            "Image Too Large",
-            "Please select an image smaller than 5MB",
-            [{ text: "OK" }]
+      if (!result.canceled && result.assets[0].uri) {
+        setUploading(true);
+        try {
+          const { url, error } = await uploadImage(
+            result.assets[0].uri,
+            `photos/${Date.now()}.jpg`
           );
-          setLoading(false);
-          return;
+
+          if (error) {
+            console.error("Upload error:", error);
+            Alert.alert("Error", "Failed to upload image. Please try again.");
+          } else if (url) {
+            const newPhotos = [...photos, url];
+            setPhotos(newPhotos);
+            updateSignupData("photos", newPhotos);
+          }
+        } catch (error) {
+          console.error("Upload error:", error);
+          Alert.alert("Error", "Failed to upload image. Please try again.");
+        } finally {
+          setUploading(false);
         }
-
-        // Add new photo
-        const newPhotos = [...photos, selectedAsset.uri];
-        setPhotos(newPhotos);
-        updateData("photos", newPhotos);
-
-        // Scroll to end to show new photo
-        setTimeout(() => {
-          scrollViewRef.current?.scrollToEnd({ animated: true });
-        }, 300);
       }
     } catch (error) {
-      console.error("Error picking image:", error);
-      Alert.alert("Error", "Failed to upload image. Please try again.");
-    } finally {
-      setLoading(false);
+      Alert.alert("Error", "Failed to pick image. Please try again.");
     }
   };
 
   const removePhoto = (index: number) => {
-    const newPhotos = photos.filter((_, i) => i !== index);
+    const newPhotos = [...photos];
+    newPhotos.splice(index, 1);
     setPhotos(newPhotos);
-    updateData("photos", newPhotos);
+    updateSignupData("photos", newPhotos);
   };
 
-  // Calculate the "Add Photo" button opacity based on number of photos
-  const addButtonOpacity = Math.min(
-    1,
-    0.6 + (4 - Math.min(photos.length, 4)) * 0.1
+  const handleNext = () => {
+    // Always allow continuing to the next step
+    router.push(getNextStep());
+  };
+
+  const renderPhoto = ({ item, index }: { item: string; index: number }) => (
+    <MotiView
+      from={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: "timing", duration: 300 }}
+      style={styles.photoContainer}
+    >
+      <Image source={{ uri: item }} style={styles.photo} />
+      <TouchableOpacity
+        style={styles.removeButton}
+        onPress={() => removePhoto(index)}
+      >
+        <Ionicons name="close-circle" size={26} color="#FF4C67" />
+      </TouchableOpacity>
+    </MotiView>
   );
 
-  const handleNext = async () => {
-    updateData("photos", photos);
-    // Navigate to the next step using the getNextStep function
-    router.push(getNextStep(8));
-  };
-
-  const PhotoItem = ({ uri, index }: { uri: string; index: number }) => {
-    // Setup animation values for drag gesture
-    const offset = useSharedValue({ x: 0, y: 0 });
-    const scale = useSharedValue(1);
-    const rotation = useSharedValue(0);
-    const saved = useSharedValue({ x: 0, y: 0 });
-    const isRemovalActive = useSharedValue(false);
-
-    // Pan gesture for the remove animation
-    const panGesture = Gesture.Pan()
-      .onBegin(() => {
-        scale.value = withSpring(1.05);
-      })
-      .onChange((event) => {
-        offset.value = {
-          x: event.translationX + saved.value.x,
-          y: event.translationY + saved.value.y,
-        };
-
-        // Calculate the distance from origin to determine removal threshold
-        const distance = Math.sqrt(
-          Math.pow(offset.value.x, 2) + Math.pow(offset.value.y, 2)
-        );
-
-        // Update rotation based on horizontal movement
-        rotation.value = offset.value.x * 0.05;
-
-        // If dragged far enough, activate removal state
-        if (distance > 100) {
-          isRemovalActive.value = true;
-        } else {
-          isRemovalActive.value = false;
-        }
-      })
-      .onEnd(() => {
-        if (isRemovalActive.value) {
-          // Remove the photo
-          removePhoto(index);
-        } else {
-          // Spring back to original position
-          offset.value = withSpring({ x: 0, y: 0 });
-          scale.value = withSpring(1);
-          rotation.value = withSpring(0);
-        }
-
-        saved.value = { x: 0, y: 0 };
-      })
-      .onFinalize(() => {
-        scale.value = withSpring(1);
-        isRemovalActive.value = false;
-      });
-
-    const animatedStyle = useAnimatedStyle(() => {
-      return {
-        transform: [
-          { translateX: offset.value.x },
-          { translateY: offset.value.y },
-          { scale: scale.value },
-          { rotateZ: `${rotation.value}deg` },
-        ],
-        opacity: isRemovalActive.value ? 0.5 : 1,
-      };
-    });
-
-    return (
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={[styles.photoContainer, animatedStyle]}>
-          <Image source={{ uri }} style={styles.photo} />
-          <View style={styles.removeIconContainer}>
-            <MaterialCommunityIcons name="drag" size={20} color="#FFF" />
-          </View>
-          <MotiView
-            style={styles.dragHintContainer}
-            from={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{
-              type: "timing",
-              duration: 500,
-              delay: 1000,
-              loop: true,
-            }}
-          >
-            <Text style={styles.dragHintText}>Drag to remove</Text>
-          </MotiView>
-        </Animated.View>
-      </GestureDetector>
-    );
-  };
-
   return (
-    <View style={styles.container}>
-      <StepContainer
-        title="Add your photos"
-        subtitle="Show yourself to the community"
-        onNext={handleNext}
-        nextLabel={photos.length > 0 ? "Continue" : "Skip for now"}
-      >
-        <MotiView
-          from={{ opacity: 0, translateY: 20 }}
-          animate={{ opacity: 1, translateY: 0 }}
-          transition={{ type: "timing", duration: 500, delay: 100 }}
-          style={styles.content}
-        >
-          <ScrollView
-            ref={scrollViewRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.photosContainer}
-          >
-            {photos.map((photo, index) => (
-              <PhotoItem key={`${photo}-${index}`} uri={photo} index={index} />
-            ))}
-
-            {photos.length < 5 && (
-              <MotiView
-                from={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: addButtonOpacity, scale: 1 }}
-                transition={{ type: "spring", damping: 15 }}
+    <StepContainer
+      onNext={handleNext}
+      nextDisabled={uploading}
+      nextButtonText={photos.length > 0 ? "Continue" : "Skip for now"}
+    >
+      <View style={styles.container}>
+        <FlatList
+          data={photos}
+          renderItem={renderPhoto}
+          keyExtractor={(item, index) => index.toString()}
+          numColumns={2}
+          columnWrapperStyle={styles.photoRow}
+          ListFooterComponent={
+            canAddMore ? (
+              <TouchableOpacity
+                style={styles.addPhotoButton}
+                onPress={pickImage}
+                disabled={uploading}
               >
-                <TouchableOpacity
-                  style={styles.addPhotoButton}
-                  onPress={pickImage}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <MaterialCommunityIcons
-                      name="loading"
-                      size={30}
-                      color="#FF6B6B"
-                    />
-                  ) : (
-                    <>
-                      <MaterialCommunityIcons
-                        name="camera-plus"
-                        size={30}
-                        color="#FF6B6B"
-                      />
-                      <Text style={styles.addPhotoText}>
-                        {photos.length === 0 ? "Add Photo" : "Add More"}
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </MotiView>
-            )}
-          </ScrollView>
+                {uploading ? (
+                  <MaterialCommunityIcons
+                    name="loading"
+                    size={32}
+                    color="#FF4C67"
+                  />
+                ) : (
+                  <MaterialCommunityIcons
+                    name="camera-plus"
+                    size={32}
+                    color="#FF4C67"
+                  />
+                )}
+                <Text style={styles.addPhotoText}>
+                  {uploading ? "Uploading..." : "Add Photo"}
+                </Text>
+              </TouchableOpacity>
+            ) : null
+          }
+        />
 
-          <View style={styles.infoContainer}>
-            <MaterialCommunityIcons name="information" size={18} color="#666" />
-            <Text style={styles.infoText}>
-              Add up to 5 photos. You can drag photos to remove them.
-            </Text>
-          </View>
-        </MotiView>
-      </StepContainer>
-    </View>
+        <View style={styles.photoCounter}>
+          <Text style={styles.photoCounterText}>
+            {photos.length} / {MAX_PHOTOS} photos
+          </Text>
+        </View>
+
+        <Text style={styles.infoText}>
+          {photos.length > 0
+            ? "Your first photo will be your main profile picture."
+            : "Adding photos is optional. You can always add them later from your profile page."}
+        </Text>
+      </View>
+    </StepContainer>
   );
 }
 
@@ -276,82 +173,56 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
-    flex: 1,
-  },
-  photosContainer: {
-    paddingVertical: 20,
-    paddingHorizontal: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: 220,
+  photoRow: {
+    justifyContent: "space-between",
+    marginBottom: 16,
   },
   photoContainer: {
-    width: 160,
-    height: 200,
+    width: "48%",
+    aspectRatio: 3 / 4,
     borderRadius: 12,
-    marginHorizontal: 8,
     overflow: "hidden",
-    backgroundColor: "#f0f0f0",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 2,
+    position: "relative",
   },
   photo: {
     width: "100%",
     height: "100%",
     borderRadius: 12,
   },
-  removeIconContainer: {
+  removeButton: {
     position: "absolute",
-    top: 10,
-    right: 10,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: 15,
-    padding: 5,
-  },
-  dragHintContainer: {
-    position: "absolute",
-    bottom: 10,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingVertical: 4,
-  },
-  dragHintText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "500",
+    top: 6,
+    right: 6,
   },
   addPhotoButton: {
-    width: 160,
-    height: 200,
+    width: "48%",
+    aspectRatio: 3 / 4,
+    backgroundColor: "#F0F0F0",
     borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#E0E0E0",
-    borderStyle: "dashed",
-    backgroundColor: "#F8F8F8",
     justifyContent: "center",
     alignItems: "center",
-    marginHorizontal: 8,
+    borderStyle: "dashed",
+    borderWidth: 1,
+    borderColor: "#CCCCCC",
   },
   addPhotoText: {
-    color: "#666",
-    marginTop: 10,
-    fontWeight: "500",
+    marginTop: 8,
+    fontSize: 14,
+    color: "#666666",
   },
-  infoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-    paddingHorizontal: 20,
+  photoCounter: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  photoCounterText: {
+    fontSize: 14,
+    color: "#666666",
+    textAlign: "center",
   },
   infoText: {
-    color: "#666",
     fontSize: 14,
-    marginLeft: 5,
+    color: "#666666",
+    textAlign: "center",
+    marginVertical: 16,
   },
 });

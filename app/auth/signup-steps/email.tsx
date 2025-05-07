@@ -10,7 +10,7 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { router } from "expo-router";
-import { useSignup } from "../../contexts/SignupContext";
+import { useSignup, SignupStepName } from "../../contexts/SignupContext";
 import { StepContainer } from "../../components/forms/StepContainer";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as yup from "yup";
@@ -25,8 +25,14 @@ const emailSchema = yup.object({
 });
 
 export default function EmailStep() {
-  const { data, updateData, setCurrentStep, getNextStep } = useSignup();
-  const [email, setEmail] = useState(data.email);
+  const {
+    signupData,
+    updateSignupData,
+    setCurrentStep,
+    getNextStep,
+    getStepByName,
+  } = useSignup();
+  const [email, setEmail] = useState(signupData.email);
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -36,8 +42,10 @@ export default function EmailStep() {
   const inputScaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    setCurrentStep(6); // Update to match the step ID in SIGNUP_STEPS
-  }, [setCurrentStep]);
+    // Set current step using the step ID from context
+    const emailStep = getStepByName("email");
+    setCurrentStep(emailStep.id);
+  }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
     Animated.spring(iconAnim, {
@@ -67,7 +75,7 @@ export default function EmailStep() {
     Keyboard.dismiss();
     try {
       await emailSchema.validateAt("email", { email });
-      updateData("email", email);
+      updateSignupData("email", email);
 
       // Create a bounce effect before navigation
       Animated.sequence([
@@ -84,7 +92,7 @@ export default function EmailStep() {
         }),
       ]).start(() => {
         // Use getNextStep to navigate to the next step in the sequence
-        router.push(getNextStep(6));
+        router.push(getNextStep());
       });
     } catch (err: any) {
       setError(err.message);
@@ -98,12 +106,7 @@ export default function EmailStep() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <StepContainer
-          title="What's your email?"
-          subtitle="We'll use this for logging in"
-          onNext={handleNext}
-          nextDisabled={!email.trim()}
-        >
+        <StepContainer onNext={handleNext} nextDisabled={!email.trim()}>
           <MotiView
             from={{ opacity: 0, translateY: 20 }}
             animate={{ opacity: 1, translateY: 0 }}

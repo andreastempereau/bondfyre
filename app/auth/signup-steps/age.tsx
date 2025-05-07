@@ -31,8 +31,14 @@ const ageSchema = yup.object({
 });
 
 export default function AgeStep() {
-  const { data, updateData, setCurrentStep, getNextStep } = useSignup();
-  const [age, setAge] = useState(data.age || "");
+  const {
+    signupData,
+    updateSignupData,
+    setCurrentStep,
+    getNextStep,
+    getStepByName,
+  } = useSignup();
+  const [age, setAge] = useState(signupData.age || "");
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -42,8 +48,10 @@ export default function AgeStep() {
   const inputScaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    setCurrentStep(3);
-  }, [setCurrentStep]);
+    // Set current step using the step ID from context
+    const ageStep = getStepByName("age");
+    setCurrentStep(ageStep.id);
+  }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
     Animated.spring(iconAnim, {
@@ -90,7 +98,7 @@ export default function AgeStep() {
     try {
       // Parse age as number for validation
       await ageSchema.validateAt("age", { age });
-      updateData("age", age);
+      updateSignupData("age", age);
 
       // Create a bounce effect before navigation
       Animated.sequence([
@@ -106,7 +114,7 @@ export default function AgeStep() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        router.push(getNextStep(3));
+        router.push(getNextStep());
       });
     } catch (err: any) {
       setError(err.message);
@@ -121,8 +129,6 @@ export default function AgeStep() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <StepContainer
-          title="How old are you?"
-          subtitle="You must be at least 18 years old"
           onNext={handleNext}
           nextDisabled={!age.trim() || parseInt(age) < 18 || parseInt(age) > 99}
         >

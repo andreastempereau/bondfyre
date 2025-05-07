@@ -30,8 +30,14 @@ const passwordSchema = yup.object({
 });
 
 export default function PasswordStep() {
-  const { data, updateData, setCurrentStep, getNextStep } = useSignup();
-  const [password, setPassword] = useState(data.password);
+  const {
+    signupData,
+    updateSignupData,
+    setCurrentStep,
+    getNextStep,
+    getStepByName,
+  } = useSignup();
+  const [password, setPassword] = useState(signupData.password);
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
@@ -43,8 +49,10 @@ export default function PasswordStep() {
   const visibilityIconAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    setCurrentStep(7); // Update to match the step ID in SIGNUP_STEPS
-  }, [setCurrentStep]);
+    // Set current step using the step ID from context
+    const passwordStep = getStepByName("password");
+    setCurrentStep(passwordStep.id);
+  }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
     Animated.spring(iconAnim, {
@@ -86,7 +94,7 @@ export default function PasswordStep() {
     Keyboard.dismiss();
     try {
       await passwordSchema.validateAt("password", { password });
-      updateData("password", password);
+      updateSignupData("password", password);
 
       // Create a bounce effect before navigation
       Animated.sequence([
@@ -103,7 +111,7 @@ export default function PasswordStep() {
         }),
       ]).start(() => {
         // Use getNextStep to navigate to the next step in the sequence
-        router.push(getNextStep(7));
+        router.push(getNextStep());
       });
     } catch (err: any) {
       setError(err.message);
@@ -146,8 +154,6 @@ export default function PasswordStep() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <StepContainer
-          title="Create a password"
-          subtitle="Make it strong and secure"
           onNext={handleNext}
           nextDisabled={!password.trim() || passwordStrength < 3}
         >

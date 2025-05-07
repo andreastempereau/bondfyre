@@ -26,8 +26,14 @@ const nameSchema = yup.object({
 });
 
 export default function NameStep() {
-  const { data, updateData, setCurrentStep, getNextStep } = useSignup();
-  const [name, setName] = useState(data.name);
+  const {
+    signupData,
+    updateSignupData,
+    setCurrentStep,
+    getNextStep,
+    getStepByName,
+  } = useSignup();
+  const [name, setName] = useState(signupData.name);
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -37,8 +43,10 @@ export default function NameStep() {
   const inputScaleAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    setCurrentStep(1);
-  }, [setCurrentStep]);
+    // Set current step using the step ID from context
+    const nameStep = getStepByName("name");
+    setCurrentStep(nameStep.id);
+  }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
     Animated.spring(iconAnim, {
@@ -68,7 +76,7 @@ export default function NameStep() {
     Keyboard.dismiss();
     try {
       await nameSchema.validateAt("name", { name });
-      updateData("name", name);
+      updateSignupData("name", name);
 
       // Create a bounce effect before navigation
       Animated.sequence([
@@ -84,8 +92,8 @@ export default function NameStep() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        // Use getNextStep to navigate to the next step
-        router.push(getNextStep(1));
+        // Use getNextStep to navigate to the next step - no need to specify current step ID
+        router.push(getNextStep());
       });
     } catch (err: any) {
       setError(err.message);
@@ -100,8 +108,6 @@ export default function NameStep() {
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
         <StepContainer
-          title="What's your name?"
-          subtitle="Let us know what to call you"
           onNext={handleNext}
           nextDisabled={!name.trim()}
           showBackButton={false}

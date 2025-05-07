@@ -41,14 +41,22 @@ type Gender =
   | "";
 
 export default function GenderStep() {
-  const { data, updateData, setCurrentStep, getNextStep } = useSignup();
+  const {
+    signupData,
+    updateSignupData,
+    setCurrentStep,
+    getNextStep,
+    getStepByName,
+  } = useSignup();
   const [selectedGender, setSelectedGender] = useState<Gender>(
-    (data.gender as Gender) || ""
+    (signupData.gender as Gender) || ""
   );
 
   useEffect(() => {
-    setCurrentStep(2);
-  }, [setCurrentStep]);
+    // Set current step using the step ID from context
+    const genderStep = getStepByName("gender");
+    setCurrentStep(genderStep.id);
+  }, [setCurrentStep, getStepByName]);
 
   const handleSelectGender = (gender: Gender) => {
     setSelectedGender(gender);
@@ -57,20 +65,15 @@ export default function GenderStep() {
   const handleNext = async () => {
     if (!selectedGender) return;
 
-    updateData("gender", selectedGender);
+    updateSignupData("gender", selectedGender);
 
-    // Navigate to the next step in sequence
-    router.push(getNextStep(2));
+    // Navigate to the next step in sequence - no need to specify current step ID
+    router.push(getNextStep());
   };
 
   return (
     <View style={styles.container}>
-      <StepContainer
-        title="What's your gender?"
-        subtitle="Select the option that best describes you"
-        onNext={handleNext}
-        nextDisabled={!selectedGender}
-      >
+      <StepContainer onNext={handleNext} nextDisabled={!selectedGender}>
         <View style={styles.genderGrid}>
           {genderOptions.map((option, index) => (
             <GenderOption

@@ -28,42 +28,129 @@ export const uploadImage = async (
 ): Promise<UploadImageResult> => {
   try {
     // Generate a unique file path using our custom function instead of uuid
-    const fileExt = uri.substring(uri.lastIndexOf(".") + 1);
+    // Get the file extension from the URI, handling potential URI formats
+    let fileExt = "jpg"; // Default extension
+    if (uri.includes(".")) {
+      fileExt = uri
+        .substring(uri.lastIndexOf(".") + 1)
+        .split(/[?#]/)[0]
+        .toLowerCase();
+    }
+
+    // Validate extension
+    if (!["jpg", "jpeg", "png", "gif", "webp"].includes(fileExt)) {
+      fileExt = "jpg"; // Default to jpg for unrecognized formats
+    }
+
     const uniqueId = generateUniqueId();
     const filePath = `${userId}/${uniqueId}.${fileExt}`;
 
     // Handle different platforms
     let base64Image;
+
     if (Platform.OS === "web") {
       // For web, fetch the image and convert to base64
       const response = await fetch(uri);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
       const blob = await response.blob();
       const arrayBuffer = await blob.arrayBuffer();
       base64Image = arrayBuffer;
     } else {
-      // For mobile, read the file as base64
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      if (!fileInfo.exists) {
-        return { url: "", error: new Error("File does not exist") };
-      }
+      // For mobile, handle different URI formats
+      try {
+        // Check if the file exists first
+        const fileInfo = await FileSystem.getInfoAsync(uri);
 
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      base64Image = decode(base64);
+        if (!fileInfo.exists) {
+          // If it's not directly accessible, it might be a remote or asset URI
+          // Try to download it first to a temporary location
+          if (uri.startsWith("http") || uri.startsWith("asset")) {
+            const tmpDownloadPath =
+              FileSystem.cacheDirectory + uniqueId + "." + fileExt;
+            const downloadResult = await FileSystem.downloadAsync(
+              uri,
+              tmpDownloadPath
+            );
+
+            if (downloadResult.status !== 200) {
+              throw new Error(
+                `Failed to download image: ${downloadResult.status}`
+              );
+            }
+
+            uri = downloadResult.uri;
+          } else {
+            return {
+              url: "",
+              error: new Error(
+                "File does not exist and couldn't be downloaded"
+              ),
+            };
+          }
+        }
+
+        // Now read the file as base64
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+
+        base64Image = decode(base64);
+      } catch (fileError: unknown) {
+        console.error("File handling error:", fileError);
+        const errorMessage =
+          fileError instanceof Error ? fileError.message : "Unknown file error";
+        return {
+          url: "",
+          error: new Error(`File handling error: ${errorMessage}`),
+        };
+      }
     }
 
-    // Upload to Supabase Storage
-    const { error } = await supabase.storage
-      .from(BUCKET_NAME)
-      .upload(filePath, base64Image, {
-        contentType: `image/${fileExt}`,
-        upsert: false,
-      });
+    // Upload to Supabase Storage with retry logic
+    let retries = 2;
+    let uploadError = null;
 
-    if (error) {
-      console.error("Upload error:", error.message);
-      return { url: "", error };
+    while (retries >= 0) {
+      try {
+        const { error } = await supabase.storage
+          .from(BUCKET_NAME)
+          .upload(filePath, base64Image, {
+            contentType: `image/${fileExt}`,
+            upsert: true, // Changed to true to overwrite if needed
+          });
+
+        if (!error) {
+          // Success! Break out of retry loop
+          uploadError = null;
+          break;
+        }
+
+        uploadError = error;
+        console.warn(
+          `Upload attempt failed (${retries} retries left):`,
+          error.message
+        );
+      } catch (e) {
+        uploadError =
+          e instanceof Error ? e : new Error("Unknown upload error");
+        console.warn(
+          `Upload exception (${retries} retries left):`,
+          uploadError.message
+        );
+      }
+
+      retries--;
+      if (retries >= 0) {
+        // Wait before retrying
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    }
+
+    if (uploadError) {
+      console.error("Upload ultimately failed:", uploadError);
+      return { url: "", error: uploadError };
     }
 
     // Get the public URL
