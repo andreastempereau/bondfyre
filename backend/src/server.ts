@@ -28,20 +28,34 @@ const allowedOrigins =
   NODE_ENV === "production"
     ? ["https://yourdomain.com", "https://*.yourdomain.com"]
     : [
-        "http://localhost8080",
+        "http://localhost:8080",
+        "http://localhost:3000",
         "exp://*",
         "http://*",
-        "https://63a1-2a09-bac1-36c0-00-29e-18.ngrok-free.app",
+        "https://*",
       ];
 
 // Middleware
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg =
+          "The CORS policy for this site does not allow access from the specified Origin.";
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     exposedHeaders: ["Content-Length", "X-Requested-With"],
     credentials: true,
+    maxAge: 86400, // 24 hours
   })
 );
 app.use(express.json());
@@ -80,7 +94,7 @@ app.use((_req, res, _next) => {
   res.status(404).json({ message: "Route not found" });
 });
 
-// Error handling middleware
+// Add error handling middleware
 app.use(
   (
     err: any,
@@ -89,7 +103,10 @@ app.use(
     _next: express.NextFunction
   ) => {
     console.error(err.stack);
-    res.status(500).json({ message: "An unexpected error occurred" });
+    res.status(err.status || 500).json({
+      message: err.message || "Internal Server Error",
+      error: NODE_ENV === "development" ? err : {},
+    });
   }
 );
 

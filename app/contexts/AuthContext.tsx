@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiService } from "../services/apiService";
+import { apiService, API_EVENTS } from "../services/apiService";
 import { Config } from "../config/environment";
 import { Alert } from "react-native";
 import { router } from "expo-router";
+import { EventRegister } from "react-native-event-listeners";
 
 export interface Profile {
   bio?: string;
@@ -49,6 +50,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     loadStoredData();
+
+    // Listen for auth errors that might happen in API service
+    const authErrorListener = EventRegister.addEventListener(
+      API_EVENTS.AUTH_ERROR,
+      (data: { message: string }) => {
+        console.log("Auth error detected:", data.message);
+        // Force sign out and display message
+        signOut();
+        Alert.alert("Session Expired", data.message || "Please sign in again");
+      }
+    );
+
+    return () => {
+      // Clean up listener when component unmounts
+      if (typeof authErrorListener === "string") {
+        EventRegister.removeEventListener(authErrorListener);
+      }
+    };
   }, []);
 
   // Add effect to navigate based on auth state

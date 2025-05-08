@@ -41,13 +41,8 @@ export default function DiscoverScreen() {
   const position = useRef(new Animated.ValueXY()).current;
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [discoveryMode, setDiscoveryMode] = useState<"users" | "groups">(
-    "groups"
-  );
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
-
-  // Match notification state
   const [matchModal, setMatchModal] = useState(false);
   const [matchDetails, setMatchDetails] = useState<any>(null);
   const router = useRouter();
@@ -67,6 +62,7 @@ export default function DiscoverScreen() {
     return <UnauthenticatedView />;
   }
 
+  // Fetch discovery data (optimized: no offset dependency)
   const fetchDiscoveryData = useCallback(
     async (refresh = false) => {
       try {
@@ -76,20 +72,14 @@ export default function DiscoverScreen() {
         } else {
           setLoading(true);
         }
-
-        // Use the discovery API endpoint based on mode - using a limit of 10
-        // Add excludeSwiped=true parameter to filter out already swiped profiles
+        setError(null);
         const response = await apiService.get(
-          `/discovery/${discoveryMode}?limit=10&offset=${
+          `/discovery/users?limit=10&offset=${
             refresh ? 0 : offset
           }&excludeSwiped=true`
         );
-
-        // The API returns an object with data, not just an array
-        const data = (response as any)[discoveryMode]; // 'users' or 'groups' property
+        const data = (response as any).users;
         const hasMoreData = (response as any).hasMore;
-
-        // Map the response data to match the GroupProfile structure
         const formattedProfiles = data.map((item: any) => ({
           id: item._id,
           name: item.name,
@@ -107,50 +97,38 @@ export default function DiscoverScreen() {
             item.photos && item.photos.length > 0
               ? item.photos
               : ["https://via.placeholder.com/500"],
-          // Include the additional discovery data
           relevanceScore: item.relevanceScore,
           matchingInterests: item.matchingInterests || [],
           mutualConnections: item.mutualConnections || 0,
           isGroupConnection: item.isGroupConnection || false,
         }));
-
         if (refresh) {
-          // Replace all data if refreshing
           setProfiles(formattedProfiles);
-          setCurrentIndex(0); // Reset to first profile
-          setCurrentPhotoIndex(0); // Reset photo index
+          setCurrentIndex(0);
+          setCurrentPhotoIndex(0);
         } else {
-          // Append new data to existing profiles
           setProfiles((prev) => [...prev, ...formattedProfiles]);
         }
-
-        // Update the offset for next page load
         setOffset(
           refresh ? formattedProfiles.length : offset + formattedProfiles.length
         );
-
-        // Update if we have more data to load
         setHasMore(hasMoreData);
       } catch (err) {
-        console.error(`Failed to fetch ${discoveryMode}:`, err);
-        setError(`Failed to load ${discoveryMode}`);
+        console.error(`Failed to fetch users:`, err);
+        setError(`Failed to load profiles`);
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [discoveryMode, offset]
+    [offset] // Only offset, not a function dependency
   );
 
-  // Initial fetch when component mounts or discovery mode changes
+  // Initial fetch: only run on mount
   useEffect(() => {
     fetchDiscoveryData(true);
-  }, [discoveryMode, fetchDiscoveryData]);
-
-  // Function to toggle between users and groups
-  const toggleDiscoveryMode = () => {
-    setDiscoveryMode((prev) => (prev === "users" ? "groups" : "users"));
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onGestureEvent = Animated.event(
     [{ nativeEvent: { translationX: position.x, translationY: position.y } }],
@@ -180,25 +158,18 @@ export default function DiscoverScreen() {
       useNativeDriver: false,
     }).start(() => {
       position.setValue({ x: 0, y: 0 });
-
-      // If we've swiped on a profile, send the swipe to the backend
       if (currentIndex < profiles.length) {
         const currentProfile = profiles[currentIndex];
-        // Send swipe to backend
         apiService
           .post("/swipes", {
-            swipedUserId: currentProfile.id,
+            userId: currentProfile.id,
             direction,
           })
           .then((response: any) => {
-            // Check if there's a match
             if (response.isMatch) {
-              // Trigger haptic feedback for a match
               Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Success
               );
-
-              // Set match details and show modal
               setMatchDetails(response.matchDetails);
               setMatchModal(true);
             }
@@ -207,11 +178,9 @@ export default function DiscoverScreen() {
             console.error("Failed to record swipe:", err);
           });
       }
-
       setCurrentIndex((prev) => {
-        // If we're at the last profile and there are more to load
+        // Only fetch more if close to end and hasMore
         if (prev === profiles.length - 3 && hasMore) {
-          // Load more profiles when we're close to the end
           fetchDiscoveryData(false);
         }
         return prev + 1;
@@ -252,155 +221,130 @@ export default function DiscoverScreen() {
     }
   };
 
-  // Close the match modal
   const handleCloseMatchModal = () => {
     setMatchModal(false);
   };
 
-  if (loading && !refreshing) {
-    return (
-      <View style={[styles.container, styles.centeredContent]}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
+  // Render main content for discover screen
+  const renderContent = () => {
+    // If we're still loading the initial batch and there are no profiles yet
+    if (loading && profiles.length === 0) {
+      return (
+        <View style={[styles.container, styles.centeredContent]}>
+          <ActivityIndicator size="large" color="#FF6B6B" />
+          <Text style={styles.loadingText}>Finding matches for you...</Text>
+        </View>
+      );
+    }
 
-  if (error && profiles.length === 0) {
-    return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.centeredContent,
-          styles.containerContent,
-          { flex: 1 },
-        ]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        <EmptyState errorMessage={error} />
-      </ScrollView>
-    );
-  }
-
-  if (profiles.length === 0 || currentIndex >= profiles.length) {
-    return (
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.centeredContent,
-          styles.containerContent,
-          { flex: 1 },
-        ]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        <EmptyState />
-      </ScrollView>
-    );
-  }
-
-  const currentProfile = profiles[currentIndex];
-
-  return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
-
-      <View style={styles.headerContainer}>
-        <TouchableOpacity
-          style={[
-            styles.modeToggle,
-            discoveryMode === "groups" ? styles.activeMode : {},
-          ]}
-          onPress={toggleDiscoveryMode}
-        >
-          <FontAwesome
-            name="users"
-            size={18}
-            color={discoveryMode === "groups" ? "#FF4C67" : "#999"}
-          />
-          <Text
-            style={[
-              styles.modeText,
-              discoveryMode === "groups" ? styles.activeModeText : {},
-            ]}
+    // If there was an error loading profiles
+    if (error && profiles.length === 0) {
+      return (
+        <View style={[styles.container, styles.centeredContent]}>
+          <ScrollView
+            contentContainerStyle={styles.errorContainer}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
           >
-            Groups
-          </Text>
-        </TouchableOpacity>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => fetchDiscoveryData(true)}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      );
+    }
 
-        <TouchableOpacity
-          style={[
-            styles.modeToggle,
-            discoveryMode === "users" ? styles.activeMode : {},
-          ]}
-          onPress={toggleDiscoveryMode}
-        >
-          <FontAwesome
-            name="user"
-            size={18}
-            color={discoveryMode === "users" ? "#FF4C67" : "#999"}
-          />
-          <Text
-            style={[
-              styles.modeText,
-              discoveryMode === "users" ? styles.activeModeText : {},
-            ]}
+    // If we've gone through all profiles
+    if (currentIndex >= profiles.length) {
+      return (
+        <View style={[styles.container, styles.centeredContent]}>
+          <ScrollView
+            contentContainerStyle={styles.centeredContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
           >
-            People
-          </Text>
-        </TouchableOpacity>
-      </View>
+            <EmptyState
+              title="No more profiles"
+              subtitle="You've seen all available profiles. Check back later for more!"
+              icon="search"
+            />
+          </ScrollView>
+        </View>
+      );
+    }
 
-      <View style={styles.cardContainer}>
-        <SwipeCard
-          profile={currentProfile}
-          currentPhotoIndex={currentPhotoIndex}
-          onPhotoPress={handlePhotoPress}
-          onGestureEvent={onGestureEvent}
-          onHandlerStateChange={onHandlerStateChange}
-          cardStyle={getCardStyle()}
-        />
-      </View>
+    // Render the swipe card interface
+    return (
+      <View style={styles.container}>
+        <View style={styles.cardsContainer}>
+          {/* Current card */}
+          {profiles[currentIndex] && (
+            <SwipeCard
+              profile={profiles[currentIndex]}
+              currentPhotoIndex={currentPhotoIndex}
+              onPhotoPress={handlePhotoPress}
+              onGestureEvent={onGestureEvent}
+              onHandlerStateChange={onHandlerStateChange}
+              cardStyle={getCardStyle()}
+            />
+          )}
+        </View>
 
-      <View style={styles.actionButtonContainer}>
+        {/* Action buttons for swiping left/right */}
         <ActionButtons onSwipe={handleSwipe} />
       </View>
+    );
+  };
 
-      {/* Add a spacer to prevent overlap with tab bar */}
-      <View style={styles.bottomSpacer} />
+  return (
+    <View style={styles.outerContainer}>
+      <StatusBar style={Platform.OS === "ios" ? "light" : "auto"} />
 
-      {/* Match notification modal */}
+      {renderContent()}
+
+      {/* Match modal */}
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={matchModal}
         onRequestClose={handleCloseMatchModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.matchModalContent}>
-            <Text style={styles.matchTitle}>It's a Match!</Text>
-            <Text style={styles.matchSubtitle}>
-              You and {matchDetails?.matchedUser?.name} have liked each other
+          <View style={styles.matchModalContainer}>
+            <View style={styles.matchHeader}>
+              <Text style={styles.matchTitle}>It's a Match!</Text>
+              <TouchableOpacity
+                style={styles.closeButton}
+                onPress={handleCloseMatchModal}
+              >
+                <FontAwesome name="times" size={22} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.matchDescription}>
+              You and {matchDetails?.name || "someone"} liked each other!
             </Text>
 
-            <View style={styles.matchImages}>
+            <View style={styles.matchImagesContainer}>
               <Image
                 source={{
-                  uri:
-                    matchDetails?.currentUser?.photos?.[0] ||
-                    "https://via.placeholder.com/150",
+                  uri: user?.photos?.[0] || "https://via.placeholder.com/150",
                 }}
                 style={styles.matchImage}
               />
-              <View style={styles.matchIconContainer}>
-                <FontAwesome name="heart" size={30} color="#FF4C67" />
+              <View style={styles.matchIcon}>
+                <FontAwesome name="heart" size={22} color="#FF6B6B" />
               </View>
               <Image
                 source={{
                   uri:
-                    matchDetails?.matchedUser?.photos?.[0] ||
+                    matchDetails?.photos?.[0] ||
                     "https://via.placeholder.com/150",
                 }}
                 style={styles.matchImage}
@@ -408,17 +352,17 @@ export default function DiscoverScreen() {
             </View>
 
             <TouchableOpacity
-              style={styles.sendMessageButton}
+              style={styles.messageButton}
               onPress={handleMessageMatch}
             >
-              <Text style={styles.sendMessageText}>Send Message</Text>
+              <Text style={styles.messageButtonText}>Send a Message</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.keepSwipingButton}
+              style={styles.continueButton}
               onPress={handleCloseMatchModal}
             >
-              <Text style={styles.keepSwipingText}>Keep Swiping</Text>
+              <Text style={styles.continueButtonText}>Keep Swiping</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -428,75 +372,108 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  outerContainer: {
     flex: 1,
     backgroundColor: "#f5f5f5",
-    paddingTop: 5, // Reduced top padding
-    paddingHorizontal: 20,
   },
-  containerContent: {
-    justifyContent: "space-between", // Moved from container to containerContent
-  },
-  cardContainer: {
+  container: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-  },
-  actionButtonContainer: {
-    alignItems: "center",
-    paddingBottom: 5,
-  },
-  bottomSpacer: {
-    height: Platform.OS === "ios" ? 60 : 50, // Add space at bottom to prevent tab bar overlap
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
   centeredContent: {
     justifyContent: "center",
     alignItems: "center",
   },
-  headerContainer: {
+  header: {
+    width: "100%",
     flexDirection: "row",
-    justifyContent: "center",
-    paddingVertical: 10,
-    marginBottom: 10,
-    marginTop: 10, // Add some top margin
-    zIndex: 10, // Ensure it's above other content
-    backgroundColor: "#f5f5f5", // Match background color
-    borderRadius: 25, // Round the corners slightly
-    alignSelf: "center", // Center horizontally
-  },
-  modeToggle: {
-    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginHorizontal: 5,
+    paddingHorizontal: 5,
+    marginBottom: 10,
+  },
+  tabsContainer: {
+    flexDirection: "row",
+    backgroundColor: "#eee",
     borderRadius: 20,
-    backgroundColor: "#f0f0f0",
+    marginBottom: 10,
+    padding: 4,
   },
-  activeMode: {
-    backgroundColor: "#FFE5E5",
+  tab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    minWidth: 100,
+    alignItems: "center",
   },
-  modeText: {
-    marginLeft: 5,
+  activeTab: {
+    backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  tabText: {
+    fontSize: 14,
+    color: "#666",
+  },
+  activeTabText: {
+    fontWeight: "600",
+    color: "#333",
+  },
+  cardsContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+  },
+  loadingText: {
+    marginTop: 10,
     fontSize: 16,
-    color: "#999",
+    color: "#666",
   },
-  activeModeText: {
-    color: "#FF4C67",
+  errorContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: "#FF6B6B",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: "white",
+    fontSize: 16,
     fontWeight: "600",
   },
-  // Match modal styles
   modalOverlay: {
     flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.7)",
   },
-  matchModalContent: {
+  matchModalContainer: {
     width: "85%",
     backgroundColor: "white",
     borderRadius: 20,
-    padding: 25,
+    padding: 20,
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: {
@@ -504,22 +481,35 @@ const styles = StyleSheet.create({
       height: 2,
     },
     shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowRadius: 3.84,
     elevation: 5,
   },
-  matchTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#FF4C67",
-    marginBottom: 10,
+  matchHeader: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 15,
+    position: "relative",
   },
-  matchSubtitle: {
+  closeButton: {
+    position: "absolute",
+    right: 0,
+    top: 0,
+    padding: 5,
+  },
+  matchTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  matchDescription: {
     fontSize: 16,
     color: "#666",
     textAlign: "center",
     marginBottom: 20,
   },
-  matchImages: {
+  matchImagesContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -529,40 +519,51 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    borderWidth: 2,
-    borderColor: "#FF4C67",
+    marginHorizontal: 5,
   },
-  matchIconContainer: {
-    marginHorizontal: 10,
+  matchIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "white",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: -5, // Overlap the images slightly
+    zIndex: 1,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
-  sendMessageButton: {
+  messageButton: {
+    backgroundColor: "#FF6B6B",
     width: "100%",
-    backgroundColor: "#FF4C67",
     paddingVertical: 12,
     borderRadius: 25,
-    alignItems: "center",
     marginBottom: 10,
   },
-  sendMessageText: {
+  messageButtonText: {
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+    textAlign: "center",
   },
-  keepSwipingButton: {
-    width: "100%",
+  continueButton: {
     backgroundColor: "transparent",
+    width: "100%",
     paddingVertical: 12,
     borderRadius: 25,
-    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ddd",
   },
-  keepSwipingText: {
+  continueButtonText: {
     color: "#666",
     fontSize: 16,
     fontWeight: "500",
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#666",
+    textAlign: "center",
   },
 });

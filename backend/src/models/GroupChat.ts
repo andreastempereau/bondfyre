@@ -5,6 +5,12 @@ export interface IGroupChat extends Document {
   participants: mongoose.Types.ObjectId[];
   creator: mongoose.Types.ObjectId;
   createdFromMatches: mongoose.Types.ObjectId[];
+  matchPairs: {
+    user1: mongoose.Types.ObjectId;
+    user2: mongoose.Types.ObjectId;
+    relationship: "match" | "friends";
+  }[];
+  isDoubleDateChat: boolean;
   latestMessage?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -20,6 +26,18 @@ const groupChatSchema = new Schema<IGroupChat>(
     createdFromMatches: [
       { type: Schema.Types.ObjectId, ref: "Match", required: true },
     ],
+    matchPairs: [
+      {
+        user1: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        user2: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        relationship: {
+          type: String,
+          enum: ["match", "friends"],
+          required: true,
+        },
+      },
+    ],
+    isDoubleDateChat: { type: Boolean, default: true },
     latestMessage: { type: Schema.Types.ObjectId, ref: "Message" },
   },
   {

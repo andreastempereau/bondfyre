@@ -60,130 +60,136 @@ export const createSwipe = async (
         const match = new Match({
           user: req.user._id,
           matchedUser: swipedUserId,
-          createdAt: new Date(),
+          matchType: "user-to-user",
+          status: "accepted",
         });
 
         await match.save();
 
         // Get user data for response
         const currentUser = await User.findById(req.user._id)
-          .select("name age gender photos")
+          .select("name age gender photos doubleDateFriends")
+          .populate("doubleDateFriends", "_id name photos")
           .lean();
+
         const matchedUser = await User.findById(swipedUserId)
-          .select("name age gender photos")
+          .select("name age gender photos doubleDateFriends")
+          .populate("doubleDateFriends", "_id name photos")
           .lean();
 
-        // Now check for friend matches between both users
-        // First, get both users with their friends populated
-        const userWithFriends = await User.findById(req.user._id)
-          .select("friends")
-          .populate("friends", "_id")
-          .lean();
-
-        const matchedUserWithFriends = await User.findById(swipedUserId)
-          .select("friends")
-          .populate("friends", "_id")
-          .lean();
+        // Check if both users have selected doubleDateFriends
+        const userDoubleDateFriends = currentUser?.doubleDateFriends || [];
+        const matchedUserDoubleDateFriends =
+          matchedUser?.doubleDateFriends || [];
 
         if (
-          userWithFriends?.friends?.length &&
-          matchedUserWithFriends?.friends?.length
+          userDoubleDateFriends.length > 0 &&
+          matchedUserDoubleDateFriends.length > 0
         ) {
-          // Check for existing mutual likes between friends
-          const userFriendIds = userWithFriends.friends.map((friend) =>
-            friend._id.toString()
+          // Look for mutual likes between the user's double date friends and the matched user's double date friends
+          const doubleDateFriendsFound = [];
+          const matchPairs = [
+            {
+              user1: new mongoose.Types.ObjectId(req.user._id),
+              user2: new mongoose.Types.ObjectId(swipedUserId),
+              relationship: "match",
+            },
+          ];
+
+          // Get the ObjectId strings of all friends
+          const userDoubleDateFriendIds = userDoubleDateFriends.map(
+            (friend: any) => friend._id.toString()
           );
-          const matchedUserFriendIds = matchedUserWithFriends.friends.map(
-            (friend) => friend._id.toString()
-          );
 
-          // Find swipes where user's friends liked matched user's friends
-          const userFriendsSwipes = await Swipe.find({
-            user: { $in: userFriendIds },
-            swipedUser: { $in: matchedUserFriendIds },
-            direction: "right",
-          });
-
-          // Find swipes where matched user's friends liked user's friends
-          const matchedUserFriendsSwipes = await Swipe.find({
-            user: { $in: matchedUserFriendIds },
-            swipedUser: { $in: userFriendIds },
-            direction: "right",
-          });
-
-          // Find mutual friend matches
-          const friendMatches = [];
-          for (const userFriendSwipe of userFriendsSwipes) {
-            const reciprocalSwipe = matchedUserFriendsSwipes.find(
-              (swipe) =>
-                swipe.user.toString() ===
-                  userFriendSwipe.swipedUser.toString() &&
-                swipe.swipedUser.toString() === userFriendSwipe.user.toString()
+          const matchedUserDoubleDateFriendIds =
+            matchedUserDoubleDateFriends.map((friend: any) =>
+              friend._id.toString()
             );
 
-            if (reciprocalSwipe) {
-              // We found a mutual match between friends
-              friendMatches.push({
-                user1: userFriendSwipe.user.toString(),
-                user2: reciprocalSwipe.user.toString(),
+          // Find all mutual likes between the user's friends and the matched user's friends
+          for (const userFriendId of userDoubleDateFriendIds) {
+            for (const matchedUserFriendId of matchedUserDoubleDateFriendIds) {
+              // Check if these friends have liked each other
+              const friendSwipe1 = await Swipe.findOne({
+                user: userFriendId,
+                swipedUser: matchedUserFriendId,
+                direction: "right",
               });
 
-              // Create a match record for these friends if it doesn't exist
-              const existingFriendMatch = await Match.findOne({
-                $or: [
-                  {
-                    user: userFriendSwipe.user,
-                    matchedUser: reciprocalSwipe.user,
-                  },
-                  {
-                    user: reciprocalSwipe.user,
-                    matchedUser: userFriendSwipe.user,
-                  },
-                ],
+              const friendSwipe2 = await Swipe.findOne({
+                user: matchedUserFriendId,
+                swipedUser: userFriendId,
+                direction: "right",
               });
 
-              if (!existingFriendMatch) {
-                const friendMatch = new Match({
-                  user: userFriendSwipe.user,
-                  matchedUser: reciprocalSwipe.user,
-                  createdAt: new Date(),
+              if (friendSwipe1 && friendSwipe2) {
+                // We found a mutual like between friends!
+                doubleDateFriendsFound.push({
+                  userFriend: userFriendId,
+                  matchedUserFriend: matchedUserFriendId,
                 });
-                await friendMatch.save();
+
+                // Create or get a match for these friends
+                let friendMatch = await Match.findOne({
+                  $or: [
+                    { user: userFriendId, matchedUser: matchedUserFriendId },
+                    { user: matchedUserFriendId, matchedUser: userFriendId },
+                  ],
+                });
+
+                if (!friendMatch) {
+                  friendMatch = new Match({
+                    user: userFriendId,
+                    matchedUser: matchedUserFriendId,
+                    matchType: "user-to-user",
+                    status: "accepted",
+                  });
+                  await friendMatch.save();
+                }
+
+                // Add to match pairs
+                matchPairs.push({
+                  user1: new mongoose.Types.ObjectId(userFriendId),
+                  user2: new mongoose.Types.ObjectId(matchedUserFriendId),
+                  relationship: "match",
+                });
               }
             }
           }
 
-          // If we have at least one friend match, create a group chat
-          if (friendMatches.length > 0) {
-            // Collect all unique participants
+          // If we found at least one friend match, create a double date group chat
+          if (doubleDateFriendsFound.length > 0) {
+            // Collect all participants
             const participants = new Set<string>([
               req.user._id.toString(),
               swipedUserId.toString(),
             ]);
 
-            // Add all users from friend matches
-            friendMatches.forEach((friendMatch) => {
-              participants.add(friendMatch.user1);
-              participants.add(friendMatch.user2);
+            // Add all friends from double date matches
+            doubleDateFriendsFound.forEach((match) => {
+              participants.add(match.userFriend);
+              participants.add(match.matchedUserFriend);
             });
 
-            // Create a group chat name based on the original match
-            const groupChatName = `${currentUser?.name || "User"} & Friends`;
+            // Create the group chat with all participants
+            const groupChatName = `${
+              currentUser?.name || "User"
+            } & Friends Double Date`;
 
-            // Create the group chat
             const groupChat = new GroupChat({
               name: groupChatName,
               participants: Array.from(participants).map(
                 (id) => new mongoose.Types.ObjectId(id)
               ),
               creator: req.user._id,
-              createdFromMatchCount: friendMatches.length + 1, // +1 for the original match
-              isAutoCreated: true,
+              createdFromMatches: [match._id],
+              matchPairs: matchPairs,
+              isDoubleDateChat: true,
             });
 
             await groupChat.save();
 
-            // Return match data with the additional group chat information
+            // Return match data with the group chat information
             res.status(201).json({
               swipe,
               isMatch: true,
@@ -191,14 +197,15 @@ export const createSwipe = async (
               groupChat: {
                 _id: groupChat._id,
                 name: groupChat.name,
-                participants: Array.from(participants).length,
+                participants: Array.from(participants),
+                isDoubleDateChat: true,
               },
               matchDetails: {
                 _id: match._id,
                 currentUser,
                 matchedUser,
-                message: "You have a new match with a group chat!",
-                friendMatchesCount: friendMatches.length,
+                message: "You have a double date match!",
+                doubleDateMatchesCount: doubleDateFriendsFound.length,
               },
             });
             return;

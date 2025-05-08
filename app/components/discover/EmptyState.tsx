@@ -10,7 +10,7 @@ interface EmptyStateProps {
 }
 
 const EmptyState: React.FC<EmptyStateProps> = ({
-  title = "No more groups to show!",
+  title = "No more people to show!",
   subtitle = "Check back later for new matches!",
   icon = "compass",
   errorMessage,

@@ -5,25 +5,34 @@
  */
 
 // UI Components
-export { default as Button } from "./ui/Button";
-export { default as Card } from "./ui/Card";
-export { default as Text } from "./ui/Text";
+export * from "./ui/Button";
+export * from "./ui/Text";
 export { default as IconSymbol } from "./ui/IconSymbol";
 
 // Layout Components
-export { default as ThemedView } from "./layout/ThemedView";
-export { default as ThemedText } from "./layout/ThemedText";
+export * from "./layout/ThemedView";
 export { ParallaxScrollView } from "./layout/ParallaxScrollView";
 export { default as Collapsible } from "./layout/Collapsible";
+
+// Form Components
+export * from "./forms";
+
+// Authentication Components
+export * from "./profile/UnauthenticatedView";
+
+// Discovery Components
+export * from "./discover/SwipeCard";
+export * from "./discover/ActionButtons";
+export * from "./discover/EmptyState";
+
+// Modal Components
+export { default as GroupModal } from "./modals/GroupModal";
+export { default as GroupSettingsModal } from "./modals/GroupSettingsModal";
 
 // Feature Components
 export { default as HapticTab } from "./features/HapticTab";
 export { default as HelloWave } from "./features/HelloWave";
 export { default as ExternalLink } from "./features/ExternalLink";
-
-// Modal Components
-export { default as GroupModal } from "./modals/GroupModal";
-export { default as GroupSettingsModal } from "./modals/GroupSettingsModal";
 
 // Adding default export to prevent Expo Router from treating this as a route
 export default {};

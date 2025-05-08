@@ -14,6 +14,7 @@ import Animated, {
 import { StepContainer } from "../../components/forms/StepContainer";
 import { useAuth } from "../../contexts/AuthContext";
 import { useSignup } from "../../contexts/SignupContext";
+import { apiService } from "../../services/apiService";
 
 const { width } = Dimensions.get("window");
 
@@ -73,7 +74,7 @@ export default function CompleteStep() {
           ? signupData.interests
           : [];
 
-      // Only use one method to create the user - the AuthContext's signUp
+      // Create the user account
       await signUp(signupData.email, signupData.password, signupData.name, {
         bio: signupData.bio || "Hello, I'm new here!",
         age: parseInt(signupData.age) || 0,
@@ -81,6 +82,22 @@ export default function CompleteStep() {
         interests: interestsArray,
         photos: signupData.photos || [],
       });
+
+      // If friends were selected, add them after registration
+      if (signupData.friends && signupData.friends.length > 0) {
+        try {
+          // Send friend requests to each selected friend
+          for (const friendId of signupData.friends) {
+            await apiService.post("/friends/request", { friendId });
+          }
+          console.log(
+            `Sent friend requests to ${signupData.friends.length} friends`
+          );
+        } catch (friendError) {
+          console.error("Error sending friend requests:", friendError);
+          // Don't fail the whole signup if friend requests fail
+        }
+      }
 
       // Show success state
       setSuccess(true);

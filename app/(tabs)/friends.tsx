@@ -16,6 +16,7 @@ import {
   FlatList,
   TextInput,
   Image,
+  Switch,
 } from "react-native";
 import { useAuth } from "../contexts/AuthContext";
 import { useThemeColor } from "../hooks/useThemeColor";
@@ -30,6 +31,7 @@ interface Friend {
   photos: string[];
   status: "pending" | "accepted" | "rejected";
   mutualInterests?: string[];
+  isDoubleDateFriend?: boolean; // Track if this friend is selected for double dates
 }
 
 // Component for displaying empty state when no friends are available
@@ -85,11 +87,17 @@ const FriendItem = ({
   onRemoveFriend,
   onAcceptFriend,
   onRejectFriend,
+  onToggleDoubleDateFriend,
+  isDoubleDateFriend,
+  doubleDateFriendsCount,
 }: {
   friend: Friend;
   onRemoveFriend: (friendId: string) => void;
   onAcceptFriend: (friendId: string) => void;
   onRejectFriend: (friendId: string) => void;
+  onToggleDoubleDateFriend: (friendId: string, value: boolean) => void;
+  isDoubleDateFriend: boolean;
+  doubleDateFriendsCount: number;
 }) => {
   const cardBackground = useThemeColor({}, "card");
   const textColor = useThemeColor({}, "text");
@@ -99,6 +107,11 @@ const FriendItem = ({
 
   const isPending = friend.status === "pending";
   const defaultImage = "https://via.placeholder.com/100";
+
+  // Determine if we should disable the double date toggle
+  // Only disable if it's not already selected and we've reached the limit of 3
+  const disableDoubleDateToggle =
+    !isDoubleDateFriend && doubleDateFriendsCount >= 3;
 
   return (
     <View style={[styles.friendCard, { backgroundColor: cardBackground }]}>
@@ -127,6 +140,24 @@ const FriendItem = ({
           </View>
         )}
       </View>
+
+      {!isPending && (
+        <View style={styles.doubleDateContainer}>
+          <Text style={[styles.doubleDateLabel, { color: mutedTextColor }]}>
+            Double Date
+          </Text>
+          <Switch
+            trackColor={{ false: "#767577", true: primaryColor }}
+            thumbColor={isDoubleDateFriend ? "#fff" : "#f4f3f4"}
+            ios_backgroundColor="#3e3e3e"
+            onValueChange={(value) =>
+              onToggleDoubleDateFriend(friend._id, value)
+            }
+            value={isDoubleDateFriend}
+            disabled={disableDoubleDateToggle}
+          />
+        </View>
+      )}
 
       <View style={styles.actionButtons}>
         {isPending ? (
@@ -158,6 +189,7 @@ const FriendItem = ({
 };
 
 export default function FriendsScreen() {
+  console.log("[DEBUG] FriendsScreen mounted");
   const { token, user, loading: authLoading } = useAuth();
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
@@ -168,6 +200,7 @@ export default function FriendsScreen() {
   const [searchResults, setSearchResults] = useState<Friend[]>([]);
   const [searching, setSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [doubleDateFriends, setDoubleDateFriends] = useState<string[]>([]);
 
   // Theme colors
   const backgroundColor = useThemeColor({}, "background");
@@ -197,36 +230,85 @@ export default function FriendsScreen() {
   // Fetch friends list from API
   const fetchFriends = useCallback(
     async (showRefreshIndicator = false) => {
+      // Prevent multiple simultaneous fetches
+      if (loading || refreshing) return;
+
       try {
         if (showRefreshIndicator) {
           setRefreshing(true);
         } else {
           setLoading(true);
         }
-
-        // Get friends
-        const friendsResponse = await apiService.get("/friends");
-        setFriends(Array.isArray(friendsResponse) ? friendsResponse : []);
-
-        // Get pending friend requests
-        const pendingResponse = await apiService.get("/friends/pending");
-        setPendingRequests(
-          Array.isArray(pendingResponse) ? pendingResponse : []
-        );
-
         setError(null);
-      } catch (error: any) {
-        console.error("Error fetching friends:", error);
-        setError("Failed to load friends");
+
+        // Debug log for fetchFriends
+        console.log("[DEBUG] fetchFriends called");
+
+        // Fetch data sequentially to prevent race conditions
+        const [friendsData, requestsData, doubleDateFriendsData] =
+          await Promise.all([
+            apiService.get<Friend[]>("/friends").catch((err) => {
+              console.log("[DEBUG] Error fetching friends list:", err);
+              return [] as Friend[];
+            }),
+            apiService.get<Friend[]>("/friends/requests").catch((err) => {
+              console.log("[DEBUG] Error fetching friend requests:", err);
+              return [] as Friend[];
+            }),
+            apiService
+              .get<{ _id: string }[]>("/users/double-date-friends")
+              .catch((err) => {
+                console.log("[DEBUG] Error fetching double date friends:", err);
+                return [] as { _id: string }[];
+              }),
+          ]);
+
+        // Debug log for API responses
+        console.log("[DEBUG] friendsData:", friendsData);
+        console.log("[DEBUG] requestsData:", requestsData);
+        console.log("[DEBUG] doubleDateFriendsData:", doubleDateFriendsData);
+
+        // Update state with fetched data
+        setFriends(friendsData as Friend[]);
+        setPendingRequests(requestsData as Friend[]);
+        setDoubleDateFriends(
+          (doubleDateFriendsData as { _id: string }[]).map(
+            (friend) => friend._id
+          )
+        );
+      } catch (error) {
+        console.error("[DEBUG] Error fetching friends:", error);
+        setError("Failed to load friends. Please try again.");
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [token]
+    [token, loading, refreshing]
   );
 
-  // Search for potential friends
+  // Use a ref to track if the effect has run to prevent multiple calls
+  const effectRan = React.useRef(false);
+  const lastFetchTime = React.useRef(0);
+
+  // Fetch friends when the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      // Only fetch if it's been more than 5 seconds since last fetch
+      if (!effectRan.current || now - lastFetchTime.current > 5000) {
+        fetchFriends();
+        effectRan.current = true;
+        lastFetchTime.current = now;
+      }
+
+      return () => {
+        effectRan.current = false;
+      };
+    }, [fetchFriends])
+  );
+
+  // Handle search for new friends
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
@@ -247,7 +329,7 @@ export default function FriendsScreen() {
     }
   };
 
-  // Send friend request
+  // Send a friend request to a user
   const sendFriendRequest = async (friendId: string) => {
     try {
       await apiService.post(`/friends/request/${friendId}`);
@@ -268,7 +350,7 @@ export default function FriendsScreen() {
     }
   };
 
-  // Accept friend request
+  // Accept a friend request
   const acceptFriendRequest = async (friendId: string) => {
     try {
       await apiService.post(`/friends/accept/${friendId}`);
@@ -289,7 +371,7 @@ export default function FriendsScreen() {
     }
   };
 
-  // Reject friend request
+  // Reject a friend request
   const rejectFriendRequest = async (friendId: string) => {
     try {
       await apiService.post(`/friends/reject/${friendId}`);
@@ -303,7 +385,7 @@ export default function FriendsScreen() {
     }
   };
 
-  // Remove friend
+  // Remove a friend from your friends list
   const removeFriend = async (friendId: string) => {
     Alert.alert(
       "Remove Friend",
@@ -330,217 +412,205 @@ export default function FriendsScreen() {
     );
   };
 
-  // Refresh data
-  const handleRefresh = () => {
-    fetchFriends(true);
-    setShowSearchResults(false);
-    setSearchQuery("");
+  // Toggle double date friend status
+  const toggleDoubleDateFriend = async (friendId: string, value: boolean) => {
+    try {
+      if (value) {
+        // Add friend to double date list
+        if (doubleDateFriends.length >= MAX_FRIENDS) {
+          Alert.alert(
+            "Maximum Reached",
+            `You can only select up to ${MAX_FRIENDS} friends for double dates.`
+          );
+          return;
+        }
+
+        await apiService.post("/users/double-date-friends", { friendId });
+        setDoubleDateFriends([...doubleDateFriends, friendId]);
+      } else {
+        // Remove friend from double date list
+        await apiService.delete(`/users/double-date-friends/${friendId}`);
+        setDoubleDateFriends(doubleDateFriends.filter((id) => id !== friendId));
+      }
+    } catch (error) {
+      console.error("Error updating double date friends:", error);
+      Alert.alert(
+        "Error",
+        "Failed to update double date friends. Please try again."
+      );
+    }
   };
 
-  // Fetch friends when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      fetchFriends();
-    }, [fetchFriends])
-  );
+  // Handle refresh (pull to refresh)
+  const handleRefresh = () => {
+    fetchFriends(true);
+  };
 
-  // Check if user has reached max friends limit
-  const hasReachedFriendsLimit = friends.length >= MAX_FRIENDS;
-
-  // Render the header with search functionality
+  // Render the header section with search and add friend functionality
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={[styles.title, { color: textColor }]}>My Friends</Text>
-      <Text style={[styles.subtitle, { color: textColor }]}>
-        {friends.length}/{MAX_FRIENDS} friends added
-      </Text>
+      <View
+        style={[styles.searchContainer, { backgroundColor: inputBackground }]}
+      >
+        <Ionicons name="search" size={20} color={placeholderColor} />
+        <TextInput
+          style={[styles.searchInput, { color: textColor }]}
+          placeholder="Search by username"
+          placeholderTextColor={placeholderColor}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={handleSearch}
+        />
+        {searchQuery ? (
+          <TouchableOpacity
+            onPress={() => {
+              setSearchQuery("");
+              setShowSearchResults(false);
+            }}
+          >
+            <Ionicons name="close-circle" size={20} color={placeholderColor} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
-      <View style={styles.searchContainer}>
-        <View style={[styles.searchBar, { backgroundColor: inputBackground }]}>
-          <FontAwesome
-            name="search"
-            size={18}
-            color={placeholderColor}
-            style={styles.searchIcon}
-          />
-          <TextInput
-            style={[styles.searchInput, { color: textColor }]}
-            placeholder="Search by name or username"
-            placeholderTextColor={placeholderColor}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearch}
-          />
-          {searching && <ActivityIndicator size="small" color={primaryColor} />}
-        </View>
-
-        <TouchableOpacity
-          style={[styles.searchButton, { backgroundColor: primaryColor }]}
-          onPress={handleSearch}
-          disabled={searching || !searchQuery.trim()}
-        >
-          <Text style={styles.searchButtonText}>Search</Text>
-        </TouchableOpacity>
+      {/* Display double date info section */}
+      <View style={styles.doubleDateInfoSection}>
+        <Text style={[styles.doubleDateInfoTitle, { color: textColor }]}>
+          Double Date Friends ({doubleDateFriends.length}/3)
+        </Text>
+        <Text style={[styles.doubleDateInfoDescription, { color: textColor }]}>
+          Select up to 3 friends you'd like to go on double dates with
+        </Text>
       </View>
     </View>
   );
 
-  return (
-    <ThemedView style={styles.container}>
-      {renderHeader()}
-
-      {error ? (
+  // Render the main content based on the current state (loading, empty, etc.)
+  const renderContent = () => {
+    // If there was an error loading friends
+    if (error) {
+      return (
         <View style={styles.errorContainer}>
-          <MaterialCommunityIcons
-            name="alert-circle-outline"
-            size={48}
-            color="#FF3B30"
-          />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
-            style={styles.retryButton}
+            style={[styles.retryButton, { backgroundColor: primaryColor }]}
             onPress={() => fetchFriends()}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
-      ) : loading && !refreshing ? (
-        <FriendsLoadingState />
-      ) : showSearchResults ? (
-        <View style={styles.resultsContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: textColor }]}>
-              Search Results
-            </Text>
-            <TouchableOpacity onPress={() => setShowSearchResults(false)}>
-              <Text style={[styles.sectionAction, { color: primaryColor }]}>
-                Cancel
-              </Text>
-            </TouchableOpacity>
-          </View>
+      );
+    }
 
-          {searchResults.length === 0 ? (
-            <View style={styles.noResultsContainer}>
-              <Ionicons name="search-outline" size={48} color="#CCC" />
-              <Text style={[styles.noResultsText, { color: textColor }]}>
-                No users found
-              </Text>
-              <Text
-                style={[styles.noResultsSubtext, { color: placeholderColor }]}
-              >
-                Try searching with a different name or username
+    // If still loading
+    if (loading) {
+      return <FriendsLoadingState />;
+    }
+
+    // If search results should be shown
+    if (showSearchResults) {
+      if (searching) {
+        return (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#FF6B6B" />
+            <Text style={styles.loadingText}>Searching...</Text>
+          </View>
+        );
+      }
+
+      return (
+        <FlatList
+          data={searchResults}
+          keyExtractor={(item) => item._id}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.searchResultItem}
+              onPress={() => sendFriendRequest(item._id)}
+            >
+              <Image
+                source={{
+                  uri: item.photos?.[0] || "https://via.placeholder.com/100",
+                }}
+                style={styles.searchResultAvatar}
+              />
+              <View style={styles.searchResultInfo}>
+                <Text style={styles.searchResultName}>{item.name}</Text>
+                {item.username && (
+                  <Text style={styles.searchResultUsername}>
+                    @{item.username}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.searchResultAction}>
+                <FontAwesome name="user-plus" size={16} color={primaryColor} />
+              </View>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptySearchContainer}>
+              <Text style={styles.emptySearchText}>
+                No users found with that username.
               </Text>
             </View>
-          ) : (
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item) => item._id}
-              renderItem={({ item }) => (
-                <View
-                  style={[
-                    styles.resultItem,
-                    { backgroundColor: inputBackground },
-                  ]}
-                >
-                  <Image
-                    source={{
-                      uri:
-                        item.photos?.[0] || "https://via.placeholder.com/100",
-                    }}
-                    style={styles.resultAvatar}
-                  />
-                  <View style={styles.resultInfo}>
-                    <Text style={[styles.resultName, { color: textColor }]}>
-                      {item.name}
-                    </Text>
-                    {item.username && (
-                      <Text
-                        style={[
-                          styles.resultUsername,
-                          { color: placeholderColor },
-                        ]}
-                      >
-                        @{item.username}
-                      </Text>
-                    )}
-                  </View>
-
-                  {item.status === "pending" ? (
-                    <TouchableOpacity style={[styles.pendingButton]}>
-                      <Text style={styles.pendingButtonText}>Pending</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      style={[
-                        styles.addButton,
-                        hasReachedFriendsLimit && styles.disabledButton,
-                        {
-                          backgroundColor: hasReachedFriendsLimit
-                            ? "#CCC"
-                            : primaryColor,
-                        },
-                      ]}
-                      onPress={() => sendFriendRequest(item._id)}
-                      disabled={hasReachedFriendsLimit}
-                    >
-                      <Text style={styles.addButtonText}>
-                        {hasReachedFriendsLimit ? "Limit Reached" : "Add"}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-              contentContainerStyle={styles.resultsList}
-            />
-          )}
-        </View>
-      ) : friends.length === 0 && pendingRequests.length === 0 ? (
-        <FriendsEmptyState onAddFriend={handleSearch} />
-      ) : (
-        <FlatList
-          data={[
-            ...(pendingRequests.length > 0
-              ? [
-                  {
-                    _id: "pending-header",
-                    header: true,
-                    title: "Pending Requests",
-                  },
-                ]
-              : []),
-            ...pendingRequests,
-            ...(friends.length > 0
-              ? [{ _id: "friends-header", header: true, title: "My Friends" }]
-              : []),
-            ...friends,
-          ]}
-          keyExtractor={(item) => item._id}
-          renderItem={({ item }) => {
-            if ("header" in item && item.header) {
-              return (
-                <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionTitle, { color: textColor }]}>
-                    {item.title}
-                  </Text>
-                </View>
-              );
-            }
-
-            const friend = item as Friend;
-            return (
-              <FriendItem
-                friend={friend}
-                onRemoveFriend={removeFriend}
-                onAcceptFriend={acceptFriendRequest}
-                onRejectFriend={rejectFriendRequest}
-              />
-            );
-          }}
-          contentContainerStyle={styles.friendsList}
-          refreshing={refreshing}
-          onRefresh={handleRefresh}
+          }
         />
+      );
+    }
+
+    // If no friends and no pending requests
+    if (friends.length === 0 && pendingRequests.length === 0) {
+      return (
+        <FriendsEmptyState onAddFriend={() => setShowSearchResults(true)} />
+      );
+    }
+
+    // Otherwise, show the friends list
+    const allItems = [...pendingRequests, ...friends];
+
+    return (
+      <FlatList
+        data={allItems}
+        keyExtractor={(item) => item._id}
+        renderItem={({ item }) => (
+          <FriendItem
+            friend={item}
+            onRemoveFriend={removeFriend}
+            onAcceptFriend={acceptFriendRequest}
+            onRejectFriend={rejectFriendRequest}
+            onToggleDoubleDateFriend={toggleDoubleDateFriend}
+            isDoubleDateFriend={doubleDateFriends.includes(item._id)}
+            doubleDateFriendsCount={doubleDateFriends.length}
+          />
+        )}
+        refreshing={refreshing}
+        onRefresh={handleRefresh}
+        ListHeaderComponent={renderHeader}
+        contentContainerStyle={styles.listContent}
+      />
+    );
+  };
+
+  return (
+    <ThemedView style={styles.container}>
+      {/* Show search results header if search results are displayed */}
+      {showSearchResults && (
+        <View style={styles.searchResultsHeader}>
+          <TouchableOpacity
+            onPress={() => {
+              setShowSearchResults(false);
+              setSearchQuery("");
+            }}
+          >
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </TouchableOpacity>
+          <Text style={[styles.searchResultsTitle, { color: textColor }]}>
+            Search Results
+          </Text>
+        </View>
       )}
+
+      {/* Main content */}
+      {renderContent()}
     </ThemedView>
   );
 }
@@ -553,92 +623,38 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-  },
   header: {
     padding: 16,
-    paddingBottom: 0,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "600",
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 46,
     marginBottom: 16,
-  },
-  searchBar: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    height: 48,
-    marginRight: 10,
-  },
-  searchIcon: {
-    marginRight: 10,
   },
   searchInput: {
     flex: 1,
-    height: 48,
+    height: 46,
+    paddingLeft: 8,
     fontSize: 16,
   },
-  searchButton: {
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    height: 48,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  searchButtonText: {
-    color: "white",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  sectionAction: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  friendsList: {
-    padding: 16,
-    paddingTop: 0,
+  listContent: {
+    flexGrow: 1,
+    paddingBottom: 16,
   },
   friendCard: {
     flexDirection: "row",
-    alignItems: "center",
+    marginHorizontal: 16,
+    marginBottom: 12,
     padding: 12,
     borderRadius: 12,
-    marginBottom: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 3,
     elevation: 2,
   },
   friendAvatar: {
@@ -649,6 +665,7 @@ const styles = StyleSheet.create({
   friendInfo: {
     flex: 1,
     marginLeft: 12,
+    justifyContent: "center",
   },
   friendName: {
     fontSize: 16,
@@ -669,6 +686,7 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: "row",
+    alignItems: "center",
   },
   actionButton: {
     width: 36,
@@ -678,137 +696,137 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginLeft: 8,
   },
-  resultsContainer: {
-    flex: 1,
-  },
-  resultsList: {
-    padding: 16,
-  },
-  resultItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  resultAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  resultInfo: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  resultName: {
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  resultUsername: {
-    fontSize: 12,
-  },
-  addButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  addButtonText: {
-    color: "white",
-    fontWeight: "500",
-    fontSize: 14,
-  },
-  pendingButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: "#F0F0F0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  pendingButtonText: {
-    color: "#777",
-    fontWeight: "500",
-    fontSize: 14,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    color: "#FF3B30",
-    textAlign: "center",
-    marginVertical: 16,
-  },
-  retryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: "#007AFF",
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  retryButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "500",
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: 32,
   },
   emptyImage: {
-    width: 120,
-    height: 120,
-    marginBottom: 24,
-    opacity: 0.8,
+    width: 100,
+    height: 100,
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 22,
-    fontWeight: "600",
+    fontSize: 20,
+    fontWeight: "bold",
     marginBottom: 8,
   },
   emptyDescription: {
     fontSize: 16,
     textAlign: "center",
-    marginBottom: 32,
+    marginBottom: 24,
   },
   addFriendButton: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 50,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     borderRadius: 25,
-    paddingHorizontal: 24,
+    alignItems: "center",
   },
   addFriendButtonText: {
     color: "white",
+    fontWeight: "600",
     fontSize: 16,
-    fontWeight: "500",
     marginLeft: 8,
   },
-  noResultsContainer: {
+  loadingContainer: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    alignItems: "center",
   },
-  noResultsText: {
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 32,
+  },
+  errorText: {
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 25,
+  },
+  retryButtonText: {
+    color: "white",
+    fontWeight: "600",
+  },
+  searchResultsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  searchResultsTitle: {
     fontSize: 18,
     fontWeight: "600",
-    marginTop: 16,
+    marginLeft: 12,
   },
-  noResultsSubtext: {
+  searchResultItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EFEFEF",
+  },
+  searchResultAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  searchResultInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  searchResultName: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  searchResultUsername: {
     fontSize: 14,
+    color: "#666",
+  },
+  searchResultAction: {
+    paddingHorizontal: 16,
+  },
+  emptySearchContainer: {
+    padding: 32,
+    alignItems: "center",
+  },
+  emptySearchText: {
+    fontSize: 16,
     textAlign: "center",
+  },
+  doubleDateContainer: {
+    marginRight: 8,
+    alignItems: "center",
+  },
+  doubleDateLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  doubleDateInfoSection: {
     marginTop: 8,
+    marginBottom: 16,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "rgba(255, 107, 107, 0.1)",
+  },
+  doubleDateInfoTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 4,
+  },
+  doubleDateInfoDescription: {
+    fontSize: 14,
   },
 });

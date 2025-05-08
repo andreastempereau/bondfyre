@@ -35,15 +35,18 @@ export const authenticateToken = async (
     // Verify the token
     jwt.verify(token, JWT_SECRET, async (err: any, decoded: any) => {
       if (err) {
+        console.log("Token verification error:", err.message);
         res.status(403).json({ message: "Invalid or expired token" });
         return;
       }
 
       try {
         // Find the user from the decoded token
-        const user = await User.findById(decoded.id).select("-password");
+        // The token payload contains userId, not id
+        const user = await User.findById(decoded.userId).select("-password");
 
         if (!user) {
+          console.log(`User not found for ID: ${decoded.userId}`);
           res.status(404).json({ message: "User not found" });
           return;
         }
@@ -52,6 +55,7 @@ export const authenticateToken = async (
         req.user = user;
         next();
       } catch (error) {
+        console.error("Database error in auth middleware:", error);
         res.status(500).json({ message: "Server error" });
       }
     });

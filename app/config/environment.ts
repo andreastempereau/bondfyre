@@ -31,7 +31,7 @@ export const Config = {
     USER_DATA: "user_data",
     ONBOARDING_COMPLETED: "onboarding_completed",
   },
-  DEFAULT_TIMEOUT: 10000, // 10 seconds
+  DEFAULT_TIMEOUT: 30000, // 30 seconds - increased from 10 seconds to reduce network errors
   PROFILE_PHOTO_SIZE_LIMIT: 5 * 1024 * 1024, // 5MB
 };
 

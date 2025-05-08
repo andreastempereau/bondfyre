@@ -3,7 +3,7 @@ import { Animated, Dimensions, StyleSheet, View } from "react-native";
 import { PanGestureHandler } from "react-native-gesture-handler";
 import { GroupProfile } from "./types";
 import PhotoCarousel from "./PhotoCarousel";
-import GroupProfileInfo from "./GroupProfileInfo";
+import MatchProfileInfo from "./MatchProfileInfo";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
@@ -40,7 +40,7 @@ const SwipeCard: React.FC<SwipeCardProps> = ({
           />
         </View>
         <View style={styles.infoContainer}>
-          <GroupProfileInfo profile={profile} />
+          <MatchProfileInfo profile={profile} />
         </View>
       </Animated.View>
     </PanGestureHandler>

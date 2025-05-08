@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { GroupChat, Message } from "../models";
+import mongoose from "mongoose";
 
 export const getGroupChats = async (
   req: Request,
@@ -169,7 +170,7 @@ export const sendGroupChatMessage = async (
     await message.save();
 
     // Update the group chat's lastMessage
-    groupChat.latestMessage = message._id;
+    groupChat.latestMessage = message._id as mongoose.Types.ObjectId;
     await groupChat.save();
 
     // Populate sender info before returning

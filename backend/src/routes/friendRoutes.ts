@@ -8,7 +8,7 @@ import {
   rejectFriendRequest,
   removeFriend,
 } from "../controllers/friendController";
-import { authenticateToken } from "../middleware/authMiddleware";
+import { authenticateToken } from "../middleware";
 
 const router = express.Router();
 
@@ -20,6 +20,8 @@ router.get("/", getFriends);
 
 // Get pending friend requests
 router.get("/pending", getPendingRequests);
+// Also support the client-side route name
+router.get("/requests", getPendingRequests);
 
 // Search for potential friends
 router.get("/search", searchUsers);

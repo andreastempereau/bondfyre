@@ -11,14 +11,14 @@ import { GroupProfile } from "./types";
 import InterestTags from "../profile/InterestTags";
 import { FontAwesome } from "@expo/vector-icons";
 
-interface GroupProfileInfoProps {
+interface MatchProfileInfoProps {
   profile: GroupProfile;
 }
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHBvcnRyYWl0fGVufDB8fDB8fHww&auto=format&fit=crop&w=900&q=60";
 
-const GroupProfileInfo: React.FC<GroupProfileInfoProps> = ({ profile }) => {
+const MatchProfileInfo: React.FC<MatchProfileInfoProps> = ({ profile }) => {
   // Calculate the number of matching interests to highlight
   const hasMatchingInterests =
     profile.matchingInterests && profile.matchingInterests.length > 0;
@@ -94,7 +94,9 @@ const GroupProfileInfo: React.FC<GroupProfileInfoProps> = ({ profile }) => {
           <View style={styles.matchingIcon}>
             <FontAwesome name="users" size={14} color="#4CAF50" />
           </View>
-          <Text style={styles.matchingText}>Connected through groups</Text>
+          <Text style={styles.matchingText}>
+            Connected through mutual matches
+          </Text>
         </View>
       )}
 
@@ -119,8 +121,10 @@ const GroupProfileInfo: React.FC<GroupProfileInfoProps> = ({ profile }) => {
               </View>
               <View style={styles.memberDetails}>
                 <Text style={styles.memberName}>
-                  {member.name}{" "}
-                  <Text style={styles.memberAge}>{member.age}</Text>
+                  {member.name}
+                  {typeof member.age !== "undefined" && (
+                    <Text style={styles.memberAge}> {String(member.age)}</Text>
+                  )}
                 </Text>
                 <View style={styles.memberGenderContainer}>
                   <FontAwesome
@@ -248,12 +252,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   memberName: {
+    fontWeight: "500",
     fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
   },
   memberAge: {
     fontWeight: "400",
+    color: "#666",
   },
   memberGenderContainer: {
     flexDirection: "row",
@@ -265,19 +269,19 @@ const styles = StyleSheet.create({
   },
   bio: {
     fontSize: 14,
-    color: "#555",
-    marginVertical: 8,
-    lineHeight: 18,
+    color: "#333",
+    lineHeight: 20,
+    marginBottom: 12,
   },
   interestsWrapper: {
-    marginTop: 2,
+    marginTop: 12,
   },
   interestsLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "600",
-    marginBottom: 6,
-    color: "#333",
+    marginBottom: 8,
+    color: "#222",
   },
 });
 
-export default GroupProfileInfo;
+export default MatchProfileInfo;

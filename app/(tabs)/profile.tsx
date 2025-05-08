@@ -15,6 +15,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { apiService } from "../services/apiService";
 import { uploadImage, deleteImage } from "../services/storageService";
 import * as ImagePicker from "expo-image-picker";
+import ThemedView from "@/app/components/layout/ThemedView";
+import { useThemeColor } from "../hooks/useThemeColor";
 
 // Import separated components
 import {
@@ -25,6 +27,7 @@ import {
 import { ProfileEditValues } from "../components/profile/ProfileEditForm";
 import { SafeAreaView } from "react-native-safe-area-context";
 import InterestTags from "../components/profile/InterestTags";
+import { DoubleDateFriendSelector } from "../components/features/DoubleDateFriendSelector";
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
@@ -32,6 +35,12 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("profile"); // 'profile' or 'doubleDateFriends'
+
+  // Theme colors
+  const cardBackground = useThemeColor({}, "card");
+  const primaryColor = useThemeColor({}, "primary");
+  const mutedTextColor = useThemeColor({}, "mutedText");
 
   useEffect(() => {
     // Initialize photos from user data
@@ -210,132 +219,207 @@ export default function ProfileScreen() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.photoContainer}>
-            <Image
-              source={{
-                uri: photos[0] || "https://via.placeholder.com/150",
-              }}
-              style={styles.profileImage}
-            />
-            <TouchableOpacity
-              style={styles.addPhotoButton}
-              onPress={pickImage}
-              disabled={uploadingImage}
-            >
-              {uploadingImage ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <FontAwesome name="camera" size={18} color="#fff" />
-              )}
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.name}>{user.name}</Text>
-          <Text style={styles.email}>{user.email}</Text>
-        </View>
+  // Add a tab for managing double date friends
+  const renderTabs = () => (
+    <View style={[styles.tabContainer, { backgroundColor: cardBackground }]}>
+      <TouchableOpacity
+        style={[
+          styles.tab,
+          activeTab === "profile" && [
+            styles.activeTab,
+            { borderBottomColor: primaryColor },
+          ],
+        ]}
+        onPress={() => setActiveTab("profile")}
+      >
+        <Text
+          style={[
+            styles.tabText,
+            { color: activeTab === "profile" ? primaryColor : mutedTextColor },
+          ]}
+        >
+          Profile
+        </Text>
+      </TouchableOpacity>
 
-        {/* Photo Gallery Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>My Photos</Text>
-            <TouchableOpacity onPress={pickImage} disabled={uploadingImage}>
-              {uploadingImage ? (
-                <ActivityIndicator size="small" color="#666" />
-              ) : (
-                <FontAwesome name="plus" size={20} color="#666" />
-              )}
-            </TouchableOpacity>
-          </View>
+      <TouchableOpacity
+        style={[
+          styles.tab,
+          activeTab === "doubleDateFriends" && [
+            styles.activeTab,
+            { borderBottomColor: primaryColor },
+          ],
+        ]}
+        onPress={() => setActiveTab("doubleDateFriends")}
+      >
+        <Text
+          style={[
+            styles.tabText,
+            {
+              color:
+                activeTab === "doubleDateFriends"
+                  ? primaryColor
+                  : mutedTextColor,
+            },
+          ]}
+        >
+          Double Date Friends
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.photoGallery}
-          >
-            {photos.length > 0 ? (
-              photos.map((photo, index) => (
-                <View key={index} style={styles.photoWrapper}>
-                  <Image source={{ uri: photo }} style={styles.galleryImage} />
-                  <TouchableOpacity
-                    style={styles.removePhotoButton}
-                    onPress={() => removePhoto(photo, index)}
-                  >
-                    <FontAwesome name="times" size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              ))
-            ) : (
+  // Render content based on active tab
+  const renderContent = () => {
+    if (activeTab === "doubleDateFriends") {
+      return <DoubleDateFriendSelector />;
+    }
+
+    // Render regular profile content
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView style={styles.container}>
+          <View style={styles.header}>
+            <View style={styles.photoContainer}>
+              <Image
+                source={{
+                  uri: photos[0] || "https://via.placeholder.com/150",
+                }}
+                style={styles.profileImage}
+              />
               <TouchableOpacity
+                style={styles.addPhotoButton}
                 onPress={pickImage}
-                style={styles.addPhotoCard}
                 disabled={uploadingImage}
               >
                 {uploadingImage ? (
-                  <ActivityIndicator size="large" color="#ccc" />
+                  <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <>
-                    <FontAwesome name="plus" size={24} color="#ccc" />
-                    <Text style={styles.addPhotoText}>Add Photos</Text>
-                  </>
+                  <FontAwesome name="camera" size={18} color="#fff" />
                 )}
               </TouchableOpacity>
-            )}
-          </ScrollView>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>About Me</Text>
-            <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
-              <FontAwesome
-                name={isEditing ? "times" : "edit"}
-                size={20}
-                color="#666"
-              />
-            </TouchableOpacity>
+            </View>
+            <Text style={styles.name}>{user.name}</Text>
+            <Text style={styles.email}>{user.email}</Text>
           </View>
 
-          {isEditing ? (
-            <ProfileEditForm
-              defaultValues={defaultValues}
-              onSave={handleSave}
-              loading={loading}
+          {/* Photo Gallery Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>My Photos</Text>
+              <TouchableOpacity onPress={pickImage} disabled={uploadingImage}>
+                {uploadingImage ? (
+                  <ActivityIndicator size="small" color="#666" />
+                ) : (
+                  <FontAwesome name="plus" size={20} color="#666" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.photoGallery}
+            >
+              {photos.length > 0 ? (
+                photos.map((photo, index) => (
+                  <View key={index} style={styles.photoWrapper}>
+                    <Image
+                      source={{ uri: photo }}
+                      style={styles.galleryImage}
+                    />
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => removePhoto(photo, index)}
+                    >
+                      <FontAwesome name="times" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              ) : (
+                <TouchableOpacity
+                  onPress={pickImage}
+                  style={styles.addPhotoCard}
+                  disabled={uploadingImage}
+                >
+                  {uploadingImage ? (
+                    <ActivityIndicator size="large" color="#ccc" />
+                  ) : (
+                    <>
+                      <FontAwesome name="plus" size={24} color="#ccc" />
+                      <Text style={styles.addPhotoText}>Add Photos</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>About Me</Text>
+              <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
+                <FontAwesome
+                  name={isEditing ? "times" : "edit"}
+                  size={20}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
+
+            {isEditing ? (
+              <ProfileEditForm
+                defaultValues={defaultValues}
+                onSave={handleSave}
+                loading={loading}
+              />
+            ) : (
+              <>
+                {(user.bio || user.profile?.bio) && (
+                  <Text style={styles.bio}>
+                    {user.bio || user.profile?.bio}
+                  </Text>
+                )}
+                {(user.age || user.profile?.age) && (
+                  <Text style={styles.detail}>
+                    {user.age || user.profile?.age} years old
+                  </Text>
+                )}
+                {(user.gender || user.profile?.gender) && (
+                  <Text style={styles.detail}>
+                    {user.gender || user.profile?.gender}
+                  </Text>
+                )}
+              </>
+            )}
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Interests</Text>
+            <InterestTags
+              interests={user.interests || user.profile?.interests || []}
             />
-          ) : (
-            <>
-              {(user.bio || user.profile?.bio) && (
-                <Text style={styles.bio}>{user.bio || user.profile?.bio}</Text>
-              )}
-              {(user.age || user.profile?.age) && (
-                <Text style={styles.detail}>
-                  {user.age || user.profile?.age} years old
-                </Text>
-              )}
-              {(user.gender || user.profile?.gender) && (
-                <Text style={styles.detail}>
-                  {user.gender || user.profile?.gender}
-                </Text>
-              )}
-            </>
-          )}
-        </View>
+          </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Interests</Text>
-          <InterestTags
-            interests={user.interests || user.profile?.interests || []}
-          />
-        </View>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <FontAwesome name="sign-out" size={20} color="#FF6B6B" />
+            <Text style={styles.logoutButtonText}>Logout</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  };
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <FontAwesome name="sign-out" size={20} color="#FF6B6B" />
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+  return (
+    <ThemedView style={styles.container}>
+      {/* ... existing header ... */}
+
+      {/* Tabs */}
+      {renderTabs()}
+
+      {/* Content based on active tab */}
+      {renderContent()}
+    </ThemedView>
   );
 }
 
@@ -467,5 +551,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
     marginLeft: 10,
+  },
+  tabContainer: {
+    flexDirection: "row",
+    marginBottom: 16,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: "500",
   },
 });

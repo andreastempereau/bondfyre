@@ -63,11 +63,14 @@ export const getPendingRequests = async (
     // Format the response to match the expected structure
     const formattedRequests = pendingRequests.map((request) => ({
       ...request.sender,
+      _id: request.sender._id, // Ensure _id is properly copied
       status: "pending",
+      requestId: request._id, // Add the request ID for reference
     }));
 
     res.json(formattedRequests);
   } catch (error: any) {
+    console.error("Error getting pending requests:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -119,7 +122,7 @@ export const searchUsers = async (
     });
 
     // Add 'status' field to indicate if there's a pending request
-    const resultsWithStatus = users.map((user) => {
+    const resultsWithStatus = users.map((user: any) => {
       const pendingRequest = pendingRequests.find(
         (request) =>
           (request.sender.toString() === req.user?._id.toString() &&

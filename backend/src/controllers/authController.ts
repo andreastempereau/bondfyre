@@ -104,6 +104,51 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+export const refreshToken = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { userId } = req.body;
+    console.log("Token refresh request for userId:", userId);
+
+    if (!userId) {
+      console.log("No userId provided for token refresh");
+      res.status(400).json({ message: "User ID is required" });
+      return;
+    }
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log("User not found for token refresh");
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    // Generate a new token
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET);
+    console.log("Token refreshed successfully");
+
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        name: user.name,
+        bio: user.bio,
+        age: user.age,
+        gender: user.gender,
+        interests: user.interests,
+        photos: user.photos,
+      },
+    });
+  } catch (error: any) {
+    console.error("Token refresh error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 export const resetPassword = async (
   req: Request,
   res: Response

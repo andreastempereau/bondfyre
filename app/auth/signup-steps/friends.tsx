@@ -108,18 +108,19 @@ export default function FriendsStep() {
   const handleContinue = async () => {
     setLoading(true);
     try {
-      // For the last step, we'll call completeSignup which should handle the final submission
-      await completeSignup({
-        ...signupData,
-        friends: selectedFriends.map((friend) => friend._id),
-      });
+      // Just update the signup data with selected friends
+      // DO NOT call completeSignup here - that will happen in the final complete step
+      updateSignupData(
+        "friends",
+        selectedFriends.map((friend) => friend._id)
+      );
 
       // Navigate to the complete step
       router.push("/auth/signup-steps/complete");
     } catch (error: any) {
       Alert.alert(
-        "Signup Error",
-        error.message || "Failed to complete signup. Please try again."
+        "Error",
+        error.message || "Failed to save friends. Please try again."
       );
     } finally {
       setLoading(false);
@@ -127,17 +128,10 @@ export default function FriendsStep() {
   };
 
   const handleSkip = () => {
-    // If the user wants to skip adding friends, still call completeSignup but with no friends
-    completeSignup(signupData)
-      .then(() => {
-        router.push("/auth/signup-steps/complete");
-      })
-      .catch((error) => {
-        Alert.alert(
-          "Signup Error",
-          error.message || "Failed to complete signup. Please try again."
-        );
-      });
+    // Just navigate to the complete step without adding friends
+    // DO NOT call completeSignup here
+    updateSignupData("friends", []);
+    router.push("/auth/signup-steps/complete");
   };
 
   const renderFriendItem = ({ item }: { item: Friend }) => (
@@ -320,8 +314,7 @@ export default function FriendsStep() {
             <Ionicons name="search-outline" size={50} color="#CCC" />
             <Text style={styles.noResultsText}>No users found.</Text>
             <Text style={styles.noResultsSubText}>
-              Try a different search term or invite your friends to join
-              2UO.
+              Try a different search term or invite your friends to join 2UO.
             </Text>
           </View>
         )}

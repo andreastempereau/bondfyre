@@ -11,6 +11,7 @@ export interface IUser extends Document {
   interests: string[];
   photos: string[];
   friends: mongoose.Types.ObjectId[];
+  doubleDateFriends: mongoose.Types.ObjectId[];
   friendRequests: mongoose.Types.ObjectId[];
   phoneNumber?: string;
   username?: string;
@@ -30,6 +31,7 @@ const userSchema = new Schema<IUser>(
     interests: { type: [String], default: [] },
     photos: { type: [String], default: [] },
     friends: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }],
+    doubleDateFriends: [{ type: Schema.Types.ObjectId, ref: "User", default: [], maxlength: 3 }],
     friendRequests: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }],
     phoneNumber: { type: String },
     username: { type: String, sparse: true, unique: true },
