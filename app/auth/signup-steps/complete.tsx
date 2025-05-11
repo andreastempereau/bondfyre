@@ -81,6 +81,8 @@ export default function CompleteStep() {
         gender: signupData.gender,
         interests: interestsArray,
         photos: signupData.photos || [],
+        phoneNumber: signupData.phoneNumber,
+        username: signupData.username,
       });
 
       // If friends were selected, add them after registration
@@ -90,9 +92,6 @@ export default function CompleteStep() {
           for (const friendId of signupData.friends) {
             await apiService.post("/friends/request", { friendId });
           }
-          console.log(
-            `Sent friend requests to ${signupData.friends.length} friends`
-          );
         } catch (friendError) {
           console.error("Error sending friend requests:", friendError);
           // Don't fail the whole signup if friend requests fail

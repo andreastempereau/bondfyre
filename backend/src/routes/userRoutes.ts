@@ -1,5 +1,5 @@
 import express from "express";
-import { authMiddleware } from "../middleware";
+import { auth } from "../middleware";
 import {
   addDoubleDateFriend,
   getDoubleDateFriends,
@@ -10,16 +10,15 @@ import {
 
 const router = express.Router();
 
-router.get("/profile", authMiddleware, getUserProfile);
-router.put("/profile", authMiddleware, updateUserProfile);
+// Apply authentication middleware to all routes
+router.use(auth);
+
+router.get("/profile", getUserProfile);
+router.put("/profile", updateUserProfile);
 
 // Double date friends routes
-router.get("/double-date-friends", authMiddleware, getDoubleDateFriends);
-router.post("/double-date-friends", authMiddleware, addDoubleDateFriend);
-router.delete(
-  "/double-date-friends/:friendId",
-  authMiddleware,
-  removeDoubleDateFriend
-);
+router.get("/double-date-friends", getDoubleDateFriends);
+router.post("/double-date-friends", addDoubleDateFriend);
+router.delete("/double-date-friends/:friendId", removeDoubleDateFriend);
 
 export default router;

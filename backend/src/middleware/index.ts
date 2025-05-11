@@ -1,9 +1,10 @@
-import { authenticateToken, isAdmin } from "./authMiddleware";
+import { auth, isAdmin } from "./auth";
 
-export { authenticateToken, isAdmin };
+export { auth, isAdmin };
 
-// For backward compatibility with code using the old interface
-export const authMiddleware = authenticateToken;
+// For backward compatibility with code using the old interfaces
+export const authenticateToken = auth;
+export const authMiddleware = auth;
 
 // Adding default export to prevent module resolution issues
 export default {};

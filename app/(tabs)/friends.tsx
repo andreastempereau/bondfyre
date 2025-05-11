@@ -1,12 +1,4 @@
-import ThemedView from "@/app/components/layout/ThemedView";
-import Text from "@/app/components/ui/Text";
-import {
-  Ionicons,
-  MaterialCommunityIcons,
-  FontAwesome,
-} from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useEffect } from "react";
 import {
   Alert,
   StyleSheet,
@@ -17,11 +9,32 @@ import {
   TextInput,
   Image,
   Switch,
+  Modal,
+  Share,
+  Platform,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Contacts from "expo-contacts";
+import {
+  Ionicons,
+  MaterialCommunityIcons,
+  FontAwesome,
+  MaterialIcons,
+} from "@expo/vector-icons";
+
+// Import internal components
+import ThemedView from "@/app/components/layout/ThemedView";
+import Text from "@/app/components/ui/Text";
+import ErrorDisplay from "@/app/components/friends/ErrorDisplay"; // Import the new ErrorDisplay component
+import { UnauthenticatedView } from "../components/profile/UnauthenticatedView";
+import { InviteCodeCard, JoinGroupModal } from "../components/groups";
+
+// Import contexts and services
 import { useAuth } from "../contexts/AuthContext";
 import { useThemeColor } from "../hooks/useThemeColor";
 import { apiService } from "../services/apiService";
-import { UnauthenticatedView } from "../components/profile/UnauthenticatedView";
+import { Config } from "../config/environment";
 
 // Friend interface definition
 interface Friend {
@@ -47,21 +60,18 @@ const FriendsEmptyState = ({ onAddFriend }: { onAddFriend: () => void }) => {
         style={styles.emptyImage}
         resizeMode="contain"
       />
-
       <Text style={[styles.emptyTitle, { color: textColor }]}>
         No Friends Yet
       </Text>
-
       <Text style={[styles.emptyDescription, { color: mutedTextColor }]}>
         Add friends to increase your chances of finding great matches!
-      </Text>
-
+      </Text>{" "}
       <TouchableOpacity
         style={[styles.addFriendButton, { backgroundColor: primaryColor }]}
         onPress={onAddFriend}
       >
         <FontAwesome name="user-plus" size={20} color="white" />
-        <Text style={styles.addFriendButtonText}>Find Friends</Text>
+        <Text style={styles.addFriendButtonText}>Invite Friends</Text>
       </TouchableOpacity>
     </View>
   );
@@ -188,19 +198,42 @@ const FriendItem = ({
   );
 };
 
-export default function FriendsScreen() {
-  console.log("[DEBUG] FriendsScreen mounted");
-  const { token, user, loading: authLoading } = useAuth();
+// Contact data structure
+interface ContactItem {
+  id: string;
+  name: string;
+  phoneNumber?: string;
+  email?: string;
+  selected?: boolean;
+}
+
+const FriendsScreen = () => {
+  // Context and state
+  const { token, user, loading: authLoading, refreshToken } = useAuth();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [activeTab, setActiveTab] = useState<"friends" | "requests">("friends");
+  const [searchResults, setSearchResults] = useState<Friend[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Friend[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [doubleDateFriends, setDoubleDateFriends] = useState<string[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  // Track double date friend selection
+  const [doubleDateFriends, setDoubleDateFriends] = useState<Set<string>>(
+    new Set()
+  );
+
+  // Friend invitation states
+  const [contacts, setContacts] = useState<ContactItem[]>([]);
+  const [showContactsModal, setShowContactsModal] = useState(false);
+  const [showInviteCodeModal, setShowInviteCodeModal] = useState(false);
+  const [showJoinGroupModal, setShowJoinGroupModal] = useState(false);
+  const [inviteCode, setInviteCode] = useState(
+    "BF" + Math.random().toString(36).substring(2, 10).toUpperCase()
+  );
+  const [isCopied, setIsCopied] = useState(false);
+  const [contactsLoading, setContactsLoading] = useState(false);
 
   // Theme colors
   const backgroundColor = useThemeColor({}, "background");
@@ -211,6 +244,287 @@ export default function FriendsScreen() {
 
   // Maximum number of friends allowed
   const MAX_FRIENDS = 3;
+
+  // Use a ref to track if the effect has run to prevent multiple calls
+  const effectRan = React.useRef(false);
+  const lastFetchTime = React.useRef(0);
+
+  // Enhanced fetchData with token refresh capability
+  const fetchData = useCallback(async () => {
+    if (!token) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Attempt to fetch friends
+      const [friendsData, requestsData] = await Promise.all([
+        apiService.get<Friend[]>("/friends"),
+        apiService.get<Friend[]>("/friends/requests"),
+      ]);
+
+      setFriends(friendsData || []);
+      setPendingRequests(requestsData || []);
+      setLoading(false);
+    } catch (error: any) {
+      console.error("Error fetching friends data:", error);
+
+      // If we get an authentication error, try refreshing the token
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        try {
+          // Attempt to refresh token
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            // If token refreshed successfully, try fetching data again
+            const [friendsData, requestsData] = await Promise.all([
+              apiService.get<Friend[]>("/friends"),
+              apiService.get<Friend[]>("/friends/requests"),
+            ]);
+
+            setFriends(friendsData || []);
+            setPendingRequests(requestsData || []);
+            setLoading(false);
+            return;
+          }
+        } catch (refreshError) {
+          console.error("Token refresh failed:", refreshError);
+        }
+      }
+
+      // If we reach here, either the token refresh failed or it wasn't an auth error
+      setError(`Error loading friends: ${error.message || "Unknown error"}`);
+      setLoading(false);
+    }
+  }, [token, refreshToken]);
+
+  // Request contacts permission and get contacts
+  const getContacts = async () => {
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Denied",
+          "Permission to access contacts was denied"
+        );
+        return;
+      }
+
+      setContactsLoading(true);
+      const { data } = await Contacts.getContactsAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Emails,
+        ],
+      });
+
+      if (data.length > 0) {
+        const formattedContacts: ContactItem[] = data
+          .filter(
+            (contact) =>
+              contact.name &&
+              (contact.phoneNumbers || contact.emails) &&
+              contact.id
+          )
+          .map((contact) => ({
+            id: contact.id as string,
+            name: contact.name || "Unknown",
+            phoneNumber: contact.phoneNumbers
+              ? contact.phoneNumbers[0]?.number
+              : undefined,
+            email: contact.emails ? contact.emails[0]?.email : undefined,
+            selected: false,
+          }));
+
+        setContacts(formattedContacts);
+        setShowContactsModal(true);
+      } else {
+        Alert.alert("No Contacts", "No contacts found on your device");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to load contacts");
+      console.error("Error loading contacts:", error);
+    } finally {
+      setContactsLoading(false);
+    }
+  };
+
+  // Toggle contact selection
+  const toggleContactSelection = (contactId: string) => {
+    const updatedContacts = contacts.map((contact) =>
+      contact.id === contactId
+        ? { ...contact, selected: !contact.selected }
+        : contact
+    );
+    setContacts(updatedContacts);
+  };
+
+  // Handle invite code copy
+  const handleCopyInviteCode = () => {
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  // Handle sharing invite code
+  const shareInviteCode = async () => {
+    try {
+      await Share.share({
+        message: `Join me on BondFyre! Use my invite code: ${inviteCode}`,
+      });
+    } catch (error) {
+      console.error("Error sharing invite code:", error);
+    }
+  };
+
+  // Save selected contacts
+  const saveSelectedContacts = () => {
+    const selectedContacts = contacts.filter((contact) => contact.selected);
+    // You would typically send these contacts to your API to send invites
+    Alert.alert(
+      "Invitations Sent",
+      `Invitations sent to ${selectedContacts.length} contacts`
+    );
+    setShowContactsModal(false);
+  };
+
+  // Open invite options menu
+  const showInviteOptions = () => {
+    Alert.alert(
+      "Invite Friends",
+      "Choose how you want to invite friends",
+      [
+        {
+          text: "Import from Contacts",
+          onPress: getContacts,
+        },
+        {
+          text: "Share Invite Code",
+          onPress: () => setShowInviteCodeModal(true),
+        },
+        {
+          text: "Enter Invite Code",
+          onPress: () => setShowJoinGroupModal(true),
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  // Search for users to add as friends
+  const searchUsers = useCallback(
+    async (query: string) => {
+      if (!query.trim() || !token) {
+        setSearchResults([]);
+        return;
+      }
+
+      setSearchLoading(true);
+      try {
+        const results = await apiService.get<Friend[]>(
+          `/friends/search?q=${encodeURIComponent(query.trim())}`
+        );
+        setSearchResults(results || []);
+      } catch (error: any) {
+        console.error("Search error:", error);
+
+        // If we get an authentication error, try refreshing the token
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          try {
+            // Attempt to refresh token
+            const refreshed = await refreshToken();
+            if (refreshed) {
+              // If token refreshed successfully, try the search again
+              const results = await apiService.get<Friend[]>(
+                `/friends/search?q=${encodeURIComponent(query.trim())}`
+              );
+              setSearchResults(results || []);
+              setSearchLoading(false);
+              return;
+            }
+          } catch (refreshError) {
+            console.error("Token refresh failed:", refreshError);
+          }
+        }
+
+        // Show error state
+        Alert.alert("Search Error", "Unable to search for users");
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    },
+    [token, refreshToken]
+  );
+
+  // Add a useEffect to perform the initial fetch when the component mounts
+  React.useEffect(() => {
+    if (!effectRan.current) {
+      fetchData();
+      effectRan.current = true;
+      lastFetchTime.current = Date.now();
+    }
+  }, [fetchData]);
+
+  // Fetch friends when the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      // Only fetch if it's been more than 5 seconds since last fetch
+      if (now - lastFetchTime.current > 5000) {
+        fetchData();
+        lastFetchTime.current = now;
+      }
+
+      return () => {
+        // Cleanup
+      };
+    }, [fetchData])
+  );
+
+  // API connection check function
+  const debugApiConnection = async () => {
+    try {
+      // Get the token from AsyncStorage
+      const storedToken = await AsyncStorage.getItem(
+        Config.STORAGE_KEYS.AUTH_TOKEN
+      );
+
+      // Try an auth endpoint first as a control test
+      try {
+        await fetch(`${Config.API_URL}/auth`, {
+          headers: {
+            Authorization: storedToken ? `Bearer ${storedToken}` : "",
+            "Content-Type": "application/json",
+          },
+        });
+      } catch (authError) {
+        // Auth endpoint error
+      }
+
+      // Now test the friends endpoint specifically
+      try {
+        const friendsResponse = await fetch(`${Config.API_URL}/friends`, {
+          headers: {
+            Authorization: storedToken ? `Bearer ${storedToken}` : "",
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!friendsResponse.ok) {
+          await friendsResponse.json().catch(() => ({}));
+        }
+      } catch (friendsError) {
+        // Friends endpoint error
+      }
+    } catch (error) {
+      // Debug API connection error
+    }
+  };
 
   // If authentication is still loading, show a loading indicator
   if (authLoading) {
@@ -227,105 +541,21 @@ export default function FriendsScreen() {
     return <UnauthenticatedView />;
   }
 
-  // Fetch friends list from API
-  const fetchFriends = useCallback(
-    async (showRefreshIndicator = false) => {
-      // Prevent multiple simultaneous fetches
-      if (loading || refreshing) return;
-
-      try {
-        if (showRefreshIndicator) {
-          setRefreshing(true);
-        } else {
-          setLoading(true);
-        }
-        setError(null);
-
-        // Debug log for fetchFriends
-        console.log("[DEBUG] fetchFriends called");
-
-        // Fetch data sequentially to prevent race conditions
-        const [friendsData, requestsData, doubleDateFriendsData] =
-          await Promise.all([
-            apiService.get<Friend[]>("/friends").catch((err) => {
-              console.log("[DEBUG] Error fetching friends list:", err);
-              return [] as Friend[];
-            }),
-            apiService.get<Friend[]>("/friends/requests").catch((err) => {
-              console.log("[DEBUG] Error fetching friend requests:", err);
-              return [] as Friend[];
-            }),
-            apiService
-              .get<{ _id: string }[]>("/users/double-date-friends")
-              .catch((err) => {
-                console.log("[DEBUG] Error fetching double date friends:", err);
-                return [] as { _id: string }[];
-              }),
-          ]);
-
-        // Debug log for API responses
-        console.log("[DEBUG] friendsData:", friendsData);
-        console.log("[DEBUG] requestsData:", requestsData);
-        console.log("[DEBUG] doubleDateFriendsData:", doubleDateFriendsData);
-
-        // Update state with fetched data
-        setFriends(friendsData as Friend[]);
-        setPendingRequests(requestsData as Friend[]);
-        setDoubleDateFriends(
-          (doubleDateFriendsData as { _id: string }[]).map(
-            (friend) => friend._id
-          )
-        );
-      } catch (error) {
-        console.error("[DEBUG] Error fetching friends:", error);
-        setError("Failed to load friends. Please try again.");
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [token, loading, refreshing]
-  );
-
-  // Use a ref to track if the effect has run to prevent multiple calls
-  const effectRan = React.useRef(false);
-  const lastFetchTime = React.useRef(0);
-
-  // Fetch friends when the screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      const now = Date.now();
-      // Only fetch if it's been more than 5 seconds since last fetch
-      if (!effectRan.current || now - lastFetchTime.current > 5000) {
-        fetchFriends();
-        effectRan.current = true;
-        lastFetchTime.current = now;
-      }
-
-      return () => {
-        effectRan.current = false;
-      };
-    }, [fetchFriends])
-  );
-
   // Handle search for new friends
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
 
-    setSearching(true);
-    setShowSearchResults(true);
+    setSearchLoading(true);
+    setShowSearch(true);
 
     try {
-      const response = await apiService.get(
-        `/friends/search?query=${encodeURIComponent(searchQuery)}`
-      );
-      setSearchResults(Array.isArray(response) ? response : []);
+      await searchUsers(searchQuery);
     } catch (error: any) {
       console.error("Search error:", error);
       Alert.alert("Search Error", "Failed to search for friends");
       setSearchResults([]);
     } finally {
-      setSearching(false);
+      setSearchLoading(false);
     }
   };
 
@@ -334,15 +564,41 @@ export default function FriendsScreen() {
     try {
       await apiService.post(`/friends/request/${friendId}`);
 
-      // Update the search results to reflect sent request
+      // Update search results to show pending status
       setSearchResults(
-        searchResults.map((friend) =>
-          friend._id === friendId ? { ...friend, status: "pending" } : friend
+        searchResults.map((f) =>
+          f._id === friendId ? { ...f, status: "pending" } : f
         )
       );
 
       Alert.alert("Success", "Friend request sent!");
     } catch (error: any) {
+      console.error("Error sending friend request:", error);
+
+      // If we get an authentication error, try refreshing the token
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        try {
+          // Attempt to refresh token
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            // If token refreshed successfully, try sending request again
+            await apiService.post(`/friends/request/${friendId}`);
+
+            // Update search results to show pending status
+            setSearchResults(
+              searchResults.map((f) =>
+                f._id === friendId ? { ...f, status: "pending" } : f
+              )
+            );
+
+            Alert.alert("Success", "Friend request sent!");
+            return;
+          }
+        } catch (refreshError) {
+          console.error("Token refresh failed:", refreshError);
+        }
+      }
+
       Alert.alert(
         "Error",
         error.response?.data?.message || "Failed to send friend request"
@@ -364,6 +620,40 @@ export default function FriendsScreen() {
 
       Alert.alert("Success", "Friend request accepted!");
     } catch (error: any) {
+      console.error("Error accepting friend request:", error);
+
+      // If we get an authentication error, try refreshing the token
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        try {
+          // Attempt to refresh token
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            // If token refreshed successfully, try accepting request again
+            console.log("Token refreshed, retrying accept friend request");
+            await apiService.post(`/friends/accept/${friendId}`);
+
+            // Move from pending to accepted friends
+            const acceptedFriend = pendingRequests.find(
+              (f) => f._id === friendId
+            );
+            if (acceptedFriend) {
+              setFriends([
+                ...friends,
+                { ...acceptedFriend, status: "accepted" },
+              ]);
+              setPendingRequests(
+                pendingRequests.filter((f) => f._id !== friendId)
+              );
+            }
+
+            Alert.alert("Success", "Friend request accepted!");
+            return;
+          }
+        } catch (refreshError) {
+          console.error("Token refresh failed:", refreshError);
+        }
+      }
+
       Alert.alert(
         "Error",
         error.response?.data?.message || "Failed to accept friend request"
@@ -378,6 +668,29 @@ export default function FriendsScreen() {
       setPendingRequests(pendingRequests.filter((f) => f._id !== friendId));
       Alert.alert("Success", "Friend request rejected");
     } catch (error: any) {
+      console.error("Error rejecting friend request:", error);
+
+      // If we get an authentication error, try refreshing the token
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        try {
+          // Attempt to refresh token
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            // If token refreshed successfully, try rejecting request again
+            console.log("Token refreshed, retrying reject friend request");
+            await apiService.post(`/friends/reject/${friendId}`);
+
+            setPendingRequests(
+              pendingRequests.filter((f) => f._id !== friendId)
+            );
+            Alert.alert("Success", "Friend request rejected");
+            return;
+          }
+        } catch (refreshError) {
+          console.error("Token refresh failed:", refreshError);
+        }
+      }
+
       Alert.alert(
         "Error",
         error.response?.data?.message || "Failed to reject friend request"
@@ -401,6 +714,32 @@ export default function FriendsScreen() {
               setFriends(friends.filter((friend) => friend._id !== friendId));
               Alert.alert("Success", "Friend removed successfully");
             } catch (error: any) {
+              console.error("Error removing friend:", error);
+
+              // If we get an authentication error, try refreshing the token
+              if (
+                error.response?.status === 401 ||
+                error.response?.status === 403
+              ) {
+                try {
+                  // Attempt to refresh token
+                  const refreshed = await refreshToken();
+                  if (refreshed) {
+                    // If token refreshed successfully, try removing friend again
+                    console.log("Token refreshed, retrying remove friend");
+                    await apiService.delete(`/friends/${friendId}`);
+
+                    setFriends(
+                      friends.filter((friend) => friend._id !== friendId)
+                    );
+                    Alert.alert("Success", "Friend removed successfully");
+                    return;
+                  }
+                } catch (refreshError) {
+                  console.error("Token refresh failed:", refreshError);
+                }
+              }
+
               Alert.alert(
                 "Error",
                 error.response?.data?.message || "Failed to remove friend"
@@ -417,7 +756,7 @@ export default function FriendsScreen() {
     try {
       if (value) {
         // Add friend to double date list
-        if (doubleDateFriends.length >= MAX_FRIENDS) {
+        if (doubleDateFriends.size >= MAX_FRIENDS) {
           Alert.alert(
             "Maximum Reached",
             `You can only select up to ${MAX_FRIENDS} friends for double dates.`
@@ -426,14 +765,41 @@ export default function FriendsScreen() {
         }
 
         await apiService.post("/users/double-date-friends", { friendId });
-        setDoubleDateFriends([...doubleDateFriends, friendId]);
+        setDoubleDateFriends(new Set(doubleDateFriends).add(friendId));
       } else {
         // Remove friend from double date list
         await apiService.delete(`/users/double-date-friends/${friendId}`);
-        setDoubleDateFriends(doubleDateFriends.filter((id) => id !== friendId));
+        const updatedSet = new Set(doubleDateFriends);
+        updatedSet.delete(friendId);
+        setDoubleDateFriends(updatedSet);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating double date friends:", error);
+
+      // If we get an authentication error, try refreshing the token
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        try {
+          // Attempt to refresh token
+          const refreshed = await refreshToken();
+          if (refreshed) {
+            console.log("Token refreshed, retrying toggle double date friend");
+            // Retry the operation after token refresh
+            if (value) {
+              await apiService.post("/users/double-date-friends", { friendId });
+              setDoubleDateFriends(new Set(doubleDateFriends).add(friendId));
+            } else {
+              await apiService.delete(`/users/double-date-friends/${friendId}`);
+              const updatedSet = new Set(doubleDateFriends);
+              updatedSet.delete(friendId);
+              setDoubleDateFriends(updatedSet);
+            }
+            return;
+          }
+        } catch (refreshError) {
+          console.error("Token refresh failed:", refreshError);
+        }
+      }
+
       Alert.alert(
         "Error",
         "Failed to update double date friends. Please try again."
@@ -443,8 +809,49 @@ export default function FriendsScreen() {
 
   // Handle refresh (pull to refresh)
   const handleRefresh = () => {
-    fetchFriends(true);
+    fetchData();
   };
+
+  // Add button to error state for manual testing
+  const renderError = () => (
+    <View style={styles.errorContainer}>
+      <FontAwesome
+        name="exclamation-triangle"
+        size={40}
+        color="#FF6B6B"
+        style={{ marginBottom: 20 }}
+      />
+      <Text style={styles.errorText}>{error}</Text>
+      <View style={styles.errorButtonsContainer}>
+        <TouchableOpacity
+          style={[styles.retryButton, { backgroundColor: primaryColor }]}
+          onPress={() => fetchData()}
+        >
+          <Text style={styles.retryButtonText}>Retry Normal Fetch</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.retryButton,
+            { backgroundColor: "#4A90E2", marginTop: 10 },
+          ]}
+          onPress={() => debugApiConnection()}
+        >
+          <Text style={styles.retryButtonText}>Debug API Connection</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.retryButton,
+            { backgroundColor: "#50C878", marginTop: 10 },
+          ]}
+          onPress={() => refreshToken()}
+        >
+          <Text style={styles.retryButtonText}>Try Token Refresh</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   // Render the header section with search and add friend functionality
   const renderHeader = () => (
@@ -465,7 +872,7 @@ export default function FriendsScreen() {
           <TouchableOpacity
             onPress={() => {
               setSearchQuery("");
-              setShowSearchResults(false);
+              setShowSearch(false);
             }}
           >
             <Ionicons name="close-circle" size={20} color={placeholderColor} />
@@ -473,10 +880,24 @@ export default function FriendsScreen() {
         ) : null}
       </View>
 
+      {/* Invite Friends Button */}
+      <TouchableOpacity
+        style={[styles.inviteFriendsButton, { backgroundColor: primaryColor }]}
+        onPress={showInviteOptions}
+      >
+        <FontAwesome
+          name="user-plus"
+          size={16}
+          color="white"
+          style={{ marginRight: 8 }}
+        />
+        <Text style={styles.inviteFriendsButtonText}>Invite Friends</Text>
+      </TouchableOpacity>
+
       {/* Display double date info section */}
       <View style={styles.doubleDateInfoSection}>
         <Text style={[styles.doubleDateInfoTitle, { color: textColor }]}>
-          Double Date Friends ({doubleDateFriends.length}/3)
+          Double Date Friends ({doubleDateFriends.size}/3)
         </Text>
         <Text style={[styles.doubleDateInfoDescription, { color: textColor }]}>
           Select up to 3 friends you'd like to go on double dates with
@@ -489,17 +910,7 @@ export default function FriendsScreen() {
   const renderContent = () => {
     // If there was an error loading friends
     if (error) {
-      return (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: primaryColor }]}
-            onPress={() => fetchFriends()}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      );
+      return renderError();
     }
 
     // If still loading
@@ -508,8 +919,8 @@ export default function FriendsScreen() {
     }
 
     // If search results should be shown
-    if (showSearchResults) {
-      if (searching) {
+    if (showSearch) {
+      if (searchLoading) {
         return (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#FF6B6B" />
@@ -559,9 +970,7 @@ export default function FriendsScreen() {
 
     // If no friends and no pending requests
     if (friends.length === 0 && pendingRequests.length === 0) {
-      return (
-        <FriendsEmptyState onAddFriend={() => setShowSearchResults(true)} />
-      );
+      return <FriendsEmptyState onAddFriend={showInviteOptions} />;
     }
 
     // Otherwise, show the friends list
@@ -578,11 +987,11 @@ export default function FriendsScreen() {
             onAcceptFriend={acceptFriendRequest}
             onRejectFriend={rejectFriendRequest}
             onToggleDoubleDateFriend={toggleDoubleDateFriend}
-            isDoubleDateFriend={doubleDateFriends.includes(item._id)}
-            doubleDateFriendsCount={doubleDateFriends.length}
+            isDoubleDateFriend={doubleDateFriends.has(item._id)}
+            doubleDateFriendsCount={doubleDateFriends.size}
           />
         )}
-        refreshing={refreshing}
+        refreshing={loading}
         onRefresh={handleRefresh}
         ListHeaderComponent={renderHeader}
         contentContainerStyle={styles.listContent}
@@ -593,11 +1002,11 @@ export default function FriendsScreen() {
   return (
     <ThemedView style={styles.container}>
       {/* Show search results header if search results are displayed */}
-      {showSearchResults && (
+      {showSearch && (
         <View style={styles.searchResultsHeader}>
           <TouchableOpacity
             onPress={() => {
-              setShowSearchResults(false);
+              setShowSearch(false);
               setSearchQuery("");
             }}
           >
@@ -611,9 +1020,165 @@ export default function FriendsScreen() {
 
       {/* Main content */}
       {renderContent()}
+
+      {/* Contacts Modal */}
+      <Modal
+        visible={showContactsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowContactsModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Contacts</Text>
+              <TouchableOpacity
+                onPress={() => setShowContactsModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            {contactsLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#FF6B6B" />
+                <Text style={styles.loadingText}>Loading contacts...</Text>
+              </View>
+            ) : (
+              <>
+                <FlatList
+                  data={contacts}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={[
+                        styles.contactItem,
+                        item.selected && styles.selectedContactItem,
+                      ]}
+                      onPress={() => toggleContactSelection(item.id)}
+                    >
+                      <View style={styles.contactAvatar}>
+                        <Text style={styles.avatarText}>
+                          {item.name.charAt(0)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.contactInfo}>
+                        <Text style={styles.contactName}>{item.name}</Text>
+                        {item.phoneNumber && (
+                          <Text style={styles.contactDetail}>
+                            {item.phoneNumber}
+                          </Text>
+                        )}
+                      </View>
+
+                      <View style={styles.selectedIndicator}>
+                        {item.selected ? (
+                          <MaterialIcons
+                            name="check-circle"
+                            size={24}
+                            color="#FF6B6B"
+                          />
+                        ) : (
+                          <MaterialIcons
+                            name="radio-button-unchecked"
+                            size={24}
+                            color="#CCC"
+                          />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                  keyExtractor={(item) => item.id}
+                  style={styles.contactsList}
+                  contentContainerStyle={styles.contactsListContent}
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.primaryButton,
+                    { backgroundColor: primaryColor },
+                  ]}
+                  onPress={saveSelectedContacts}
+                >
+                  <Text style={styles.primaryButtonText}>Send Invites</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Invite Code Modal */}
+      <Modal
+        visible={showInviteCodeModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowInviteCodeModal(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Share Invite Code</Text>
+              <TouchableOpacity
+                onPress={() => setShowInviteCodeModal(false)}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inviteCodeContainer}>
+              <InviteCodeCard
+                inviteCode={inviteCode}
+                onCopy={handleCopyInviteCode}
+              />
+
+              {isCopied && (
+                <View style={styles.copiedMessage}>
+                  <MaterialIcons
+                    name="check-circle"
+                    size={16}
+                    color="#4CAF50"
+                  />
+                  <Text style={styles.copiedText}>Copied to clipboard!</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  { backgroundColor: primaryColor, marginTop: 16 },
+                ]}
+                onPress={shareInviteCode}
+              >
+                <MaterialIcons
+                  name="share"
+                  size={18}
+                  color="white"
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={styles.primaryButtonText}>Share Code</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Join Group Modal */}
+      <JoinGroupModal
+        visible={showJoinGroupModal}
+        onClose={() => setShowJoinGroupModal(false)}
+        onGroupJoined={() => {
+          Alert.alert("Success", "You have successfully joined the group!");
+          setShowJoinGroupModal(false);
+        }}
+      />
     </ThemedView>
   );
-}
+};
+
+export default FriendsScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -750,10 +1315,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 16,
   },
+  errorButtonsContainer: {
+    alignItems: "center",
+    marginTop: 16,
+  },
   retryButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 25,
+    marginBottom: 8,
   },
   retryButtonText: {
     color: "white",
@@ -828,5 +1398,126 @@ const styles = StyleSheet.create({
   },
   doubleDateInfoDescription: {
     fontSize: 14,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEEEEE",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  closeButton: {
+    padding: 4,
+  },
+  contactsList: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  contactsListContent: {
+    paddingBottom: 16,
+  },
+  contactItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "white",
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+  },
+  selectedContactItem: {
+    backgroundColor: "#FFF0F0",
+    borderColor: "#FFD6DE",
+  },
+  contactAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#EFEFEF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  contactInfo: {
+    flex: 1,
+  },
+  contactName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  contactDetail: {
+    fontSize: 14,
+    color: "#777",
+  },
+  selectedIndicator: {
+    width: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  primaryButton: {
+    backgroundColor: "#FF6B6B",
+    borderRadius: 12,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  primaryButtonText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  inviteCodeContainer: {
+    padding: 8,
+  },
+  copiedMessage: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  copiedText: {
+    marginLeft: 6,
+    color: "#4CAF50",
+    fontSize: 14,
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#555",
+  },
+  inviteFriendsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  inviteFriendsButtonText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 15,
   },
 });

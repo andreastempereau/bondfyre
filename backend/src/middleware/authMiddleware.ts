@@ -11,6 +11,12 @@ declare global {
   }
 }
 
+// Define JWTPayload interface for TypeScript
+interface JwtPayload {
+  userId: string;
+  [key: string]: any;
+}
+
 /**
  * Middleware to authenticate JWT tokens
  * Verifies the token from the Authorization header and sets req.user if valid
@@ -29,24 +35,19 @@ export const authenticateToken = async (
       return;
     }
 
-    // Get JWT secret from environment variable
+    // Get JWT secret from environment variable - ensure it's the same as in authController.ts
+    // IMPORTANT: This must match exactly the one used in authController.ts
     const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
-    // Verify the token
-    jwt.verify(token, JWT_SECRET, async (err: any, decoded: any) => {
-      if (err) {
-        console.log("Token verification error:", err.message);
-        res.status(403).json({ message: "Invalid or expired token" });
-        return;
-      }
+    try {
+      // Use a type assertion for the decoded token
+      const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
 
       try {
         // Find the user from the decoded token
-        // The token payload contains userId, not id
         const user = await User.findById(decoded.userId).select("-password");
 
         if (!user) {
-          console.log(`User not found for ID: ${decoded.userId}`);
           res.status(404).json({ message: "User not found" });
           return;
         }
@@ -55,12 +56,15 @@ export const authenticateToken = async (
         req.user = user;
         next();
       } catch (error) {
-        console.error("Database error in auth middleware:", error);
         res.status(500).json({ message: "Server error" });
       }
-    });
+    } catch (err: any) {
+      res
+        .status(403)
+        .json({ message: `Token verification error: ${err.message}` });
+      return;
+    }
   } catch (error) {
-    console.error("Auth middleware error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };

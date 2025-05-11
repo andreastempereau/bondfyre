@@ -88,6 +88,16 @@ export const ProfileEditForm = ({
         containerStyle={styles.inputContainer}
       />
 
+      <FormInput<ProfileEditValues>
+        control={control}
+        name="phoneNumber"
+        label="Phone Number"
+        placeholder="Your phone number"
+        icon="phone"
+        error={errors.phoneNumber}
+        containerStyle={styles.inputContainer}
+      />
+
       <FormButton
         title="Save Changes"
         onPress={handleSubmit(onSave)}

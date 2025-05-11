@@ -48,6 +48,27 @@ class ApiService {
       },
       (error) => Promise.reject(error)
     );
+
+    // Response interceptor for error handling
+    this.api.interceptors.response.use(
+      (response) => {
+        return response;
+      },
+      (error: AxiosError) => {
+        const responseData = error.response?.data as Record<string, any>;
+
+        // Handle authentication errors
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          // Emit an authentication error event that will be caught by AuthContext
+          EventRegister.emit(API_EVENTS.AUTH_ERROR, {
+            message: responseData?.message || "Authentication failed",
+            status: error.response?.status,
+          });
+        }
+
+        return Promise.reject(error);
+      }
+    );
   }
 
   public async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {

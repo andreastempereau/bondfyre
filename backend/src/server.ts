@@ -61,9 +61,8 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Simple logging middleware
-app.use((req, _res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+// Simple request middleware
+app.use((_req, _res, next) => {
   next();
 });
 
@@ -85,12 +84,6 @@ app.get("/health", (_req, res) => {
 
 // Error handling for unsupported routes
 app.use((_req, res, _next) => {
-  console.log("Route not found");
-  // Log the request method and path
-  console.log(
-    `${new Date().toISOString()} - Route not found: ${_req.method} ${_req.path}`
-  );
-
   res.status(404).json({ message: "Route not found" });
 });
 
@@ -114,10 +107,9 @@ app.use(
 const startServer = async () => {
   try {
     await mongoose.connect(MONGODB_URI);
-    console.log("Connected to MongoDB");
 
     app.listen(PORT, () => {
-      console.log(`Server running in ${NODE_ENV} mode on port ${PORT}`);
+      // Server started
     });
   } catch (error) {
     console.error("Failed to start server:", error);

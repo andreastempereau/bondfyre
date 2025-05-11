@@ -1,23 +1,25 @@
-import React, { useState, useEffect } from "react";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import * as Contacts from "expo-contacts";
+import { router } from "expo-router";
+import { MotiView } from "moti";
+import React, { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Share,
   StyleSheet,
-  View,
   Text,
   TextInput,
   TouchableOpacity,
-  Alert,
-  FlatList,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
+  View,
 } from "react-native";
-import { router } from "expo-router";
-import { useSignup } from "../../contexts/SignupContext";
 import { StepContainer } from "../../components/forms/StepContainer";
-import { Ionicons, MaterialIcons, FontAwesome } from "@expo/vector-icons";
-import { MotiView } from "moti";
-import { apiService } from "../../services/apiService";
+import { InviteCodeCard, JoinGroupModal } from "../../components/groups";
+import { useSignup } from "../../contexts/SignupContext";
 
 // Friend data structure
 interface Friend {
@@ -29,98 +31,145 @@ interface Friend {
   selected?: boolean;
 }
 
-export default function FriendsStep() {
-  const { signupData, updateSignupData, completeSignup } = useSignup();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchType, setSearchType] = useState<"username" | "phone">(
-    "username"
-  );
-  const [loading, setLoading] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<Friend[]>([]);
-  const [selectedFriends, setSelectedFriends] = useState<Friend[]>([]);
+// Contact data structure
+interface ContactItem {
+  id: string;
+  name: string;
+  phoneNumber?: string;
+  email?: string;
+  selected?: boolean;
+}
 
-  const isSearchButtonDisabled = searchQuery.trim().length < 2;
+export default function FriendsStep() {
+  const { signupData, updateSignupData } = useSignup();
+  const [phoneNumber, setPhoneNumber] = useState(signupData.phoneNumber || "");
+  const [selectedFriends, setSelectedFriends] = useState<Friend[]>([]);
+  const [contacts, setContacts] = useState<ContactItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showContactsModal, setShowContactsModal] = useState(false);
+  const [showInviteCodeModal, setShowInviteCodeModal] = useState(false);
+  const [showJoinGroupModal, setShowJoinGroupModal] = useState(false);
+  const [inviteCode, setInviteCode] = useState(
+    "BF" + Math.random().toString(36).substring(2, 10).toUpperCase()
+  );
+  const [isCopied, setIsCopied] = useState(false);
 
   // Max number of friends allowable
   const MAX_FRIENDS = 3;
 
-  const handleSearch = async () => {
-    if (isSearchButtonDisabled) return;
-
-    setSearching(true);
+  // Request contacts permission and get contacts
+  const getContacts = async () => {
     try {
-      // This would be replaced with an actual API call in a real app
-      const response = await apiService.get(
-        `/friends/search?query=${encodeURIComponent(
-          searchQuery
-        )}&type=${searchType}`
-      );
+      const { status } = await Contacts.requestPermissionsAsync();
 
-      // Map the results and mark already selected friends
-      const results = response.data.map((user: Friend) => ({
-        ...user,
-        selected: selectedFriends.some((friend) => friend._id === user._id),
-      }));
-
-      setSearchResults(results);
-    } catch (error) {
-      console.error("Search error:", error);
-      Alert.alert(
-        "Search Error",
-        "Failed to search for friends. Please try again."
-      );
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const toggleFriendSelection = (friend: Friend) => {
-    const isSelected = selectedFriends.some((f) => f._id === friend._id);
-
-    if (isSelected) {
-      // Remove from selected friends
-      setSelectedFriends(selectedFriends.filter((f) => f._id !== friend._id));
-    } else {
-      // Check if we've reached the maximum number of friends
-      if (selectedFriends.length >= MAX_FRIENDS) {
+      if (status !== "granted") {
         Alert.alert(
-          "Limit Reached",
-          `You can only select up to ${MAX_FRIENDS} friends.`
+          "Permission Denied",
+          "Permission to access contacts was denied"
         );
         return;
       }
 
-      // Add to selected friends
-      setSelectedFriends([...selectedFriends, friend]);
-    }
+      setLoading(true);
+      const { data } = await Contacts.getContactsAsync({
+        fields: [
+          Contacts.Fields.Name,
+          Contacts.Fields.PhoneNumbers,
+          Contacts.Fields.Emails,
+        ],
+      });
 
-    // Update the search results to reflect the new selection state
-    setSearchResults(
-      searchResults.map((result) =>
-        result._id === friend._id
-          ? { ...result, selected: !isSelected }
-          : result
-      )
+      if (data.length > 0) {
+        const formattedContacts: ContactItem[] = data
+          .filter(
+            (contact) =>
+              contact.name &&
+              (contact.phoneNumbers || contact.emails) &&
+              contact.id
+          )
+          .map((contact) => ({
+            id: contact.id as string, // Ensure id is treated as string
+            name: contact.name || "Unknown",
+            phoneNumber: contact.phoneNumbers
+              ? contact.phoneNumbers[0]?.number
+              : undefined,
+            email: contact.emails ? contact.emails[0]?.email : undefined,
+            selected: false,
+          }));
+
+        setContacts(formattedContacts);
+        setShowContactsModal(true);
+      } else {
+        Alert.alert("No Contacts", "No contacts found on your device");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to load contacts");
+      console.error("Error loading contacts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Toggle contact selection
+  const toggleContactSelection = (contactId: string) => {
+    const updatedContacts = contacts.map((contact) =>
+      contact.id === contactId
+        ? { ...contact, selected: !contact.selected }
+        : contact
     );
+    setContacts(updatedContacts);
+  };
+
+  // Handle invite code copy
+  const handleCopyInviteCode = () => {
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  // Handle sharing invite code
+  const shareInviteCode = async () => {
+    try {
+      await Share.share({
+        message: `Join me on BondFyre! Use my invite code: ${inviteCode}`,
+      });
+    } catch (error) {
+      console.error("Error sharing invite code:", error);
+    }
+  };
+
+  // Save selected contacts
+  const saveSelectedContacts = () => {
+    const selectedContacts = contacts.filter((contact) => contact.selected);
+    // You would typically send these contacts to your API to send invites
+    // For now, we'll just show an alert
+    Alert.alert(
+      "Invitations Sent",
+      `Invitations sent to ${selectedContacts.length} contacts`
+    );
+    setShowContactsModal(false);
   };
 
   const handleContinue = async () => {
+    if (!phoneNumber.trim()) {
+      Alert.alert("Missing Information", "Please enter your mobile number");
+      return;
+    }
+
     setLoading(true);
     try {
-      // Just update the signup data with selected friends
-      // DO NOT call completeSignup here - that will happen in the final complete step
+      // Update signup data with selected friends and phone number
       updateSignupData(
         "friends",
         selectedFriends.map((friend) => friend._id)
       );
+      updateSignupData("phoneNumber", phoneNumber);
 
       // Navigate to the complete step
       router.push("/auth/signup-steps/complete");
     } catch (error: any) {
       Alert.alert(
         "Error",
-        error.message || "Failed to save friends. Please try again."
+        error.message || "Failed to save information. Please try again."
       );
     } finally {
       setLoading(false);
@@ -128,29 +177,31 @@ export default function FriendsStep() {
   };
 
   const handleSkip = () => {
-    // Just navigate to the complete step without adding friends
-    // DO NOT call completeSignup here
+    if (!phoneNumber.trim()) {
+      Alert.alert("Missing Information", "Please enter your mobile number");
+      return;
+    }
+
+    // Save the phone number but skip adding friends
+    updateSignupData("phoneNumber", phoneNumber);
     updateSignupData("friends", []);
     router.push("/auth/signup-steps/complete");
   };
 
-  const renderFriendItem = ({ item }: { item: Friend }) => (
+  // Render contact item for contacts modal
+  const renderContactItem = ({ item }: { item: ContactItem }) => (
     <TouchableOpacity
-      style={[styles.friendItem, item.selected && styles.selectedFriendItem]}
-      onPress={() => toggleFriendSelection(item)}
+      style={[styles.contactItem, item.selected && styles.selectedContactItem]}
+      onPress={() => toggleContactSelection(item.id)}
     >
-      <View style={styles.friendAvatar}>
-        {item.photos && item.photos.length > 0 ? (
-          <Image source={{ uri: item.photos[0] }} style={styles.avatarImage} />
-        ) : (
-          <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
-        )}
+      <View style={styles.contactAvatar}>
+        <Text style={styles.avatarText}>{item.name.charAt(0)}</Text>
       </View>
 
-      <View style={styles.friendInfo}>
-        <Text style={styles.friendName}>{item.name}</Text>
-        {item.username && (
-          <Text style={styles.friendDetail}>@{item.username}</Text>
+      <View style={styles.contactInfo}>
+        <Text style={styles.contactName}>{item.name}</Text>
+        {item.phoneNumber && (
+          <Text style={styles.contactDetail}>{item.phoneNumber}</Text>
         )}
       </View>
 
@@ -164,34 +215,6 @@ export default function FriendsStep() {
     </TouchableOpacity>
   );
 
-  const renderSelectedFriendItem = ({ item }: { item: Friend }) => (
-    <MotiView
-      from={{ opacity: 0, translateX: 20 }}
-      animate={{ opacity: 1, translateX: 0 }}
-      transition={{ type: "timing", duration: 300 }}
-      style={styles.selectedFriendChip}
-    >
-      <View style={styles.chipContent}>
-        {item.photos && item.photos.length > 0 ? (
-          <Image source={{ uri: item.photos[0] }} style={styles.chipAvatar} />
-        ) : (
-          <View style={styles.chipAvatarFallback}>
-            <Text style={styles.chipAvatarText}>{item.name.charAt(0)}</Text>
-          </View>
-        )}
-
-        <Text style={styles.chipName}>{item.name}</Text>
-
-        <TouchableOpacity
-          style={styles.chipRemove}
-          onPress={() => toggleFriendSelection(item)}
-        >
-          <Ionicons name="close-circle" size={20} color="#FF4C67" />
-        </TouchableOpacity>
-      </View>
-    </MotiView>
-  );
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -199,282 +222,364 @@ export default function FriendsStep() {
     >
       <StepContainer
         title="Add Friends"
-        description="Find your friends who are already on BondFyre. You can add up to 3 friends to improve your chances of group matches."
-        currentStep={7}
-        totalSteps={7}
-        onBack={() => router.back()}
-        onContinue={handleContinue}
-        continueDisabled={loading}
-        continueText={loading ? "Creating Account..." : "Complete Signup"}
+        subtitle="Connect with friends and add your mobile number"
+        onNext={handleContinue}
+        nextDisabled={loading || !phoneNumber.trim()}
+        nextButtonText={loading ? "Saving..." : "Continue"}
       >
-        <View style={styles.searchContainer}>
-          <View style={styles.searchBarContainer}>
-            <View style={styles.searchInputContainer}>
-              <FontAwesome
-                name="search"
-                size={18}
-                color="#999"
-                style={styles.searchIcon}
-              />
-              <TextInput
-                style={styles.searchInput}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search by username or phone"
-                placeholderTextColor="#999"
-                autoCapitalize="none"
-                onSubmitEditing={handleSearch}
-              />
-              {searching && <ActivityIndicator size="small" color="#FF4C67" />}
-            </View>
+        {/* Phone number input */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: "timing", duration: 500, delay: 100 }}
+          style={styles.section}
+        >
+          <Text style={styles.sectionTitle}>Your Mobile Number</Text>
+          <Text style={styles.sectionSubtitle}>
+            Add your phone number to help your friends find you
+          </Text>
 
-            <TouchableOpacity
-              style={[
-                styles.searchButton,
-                isSearchButtonDisabled && styles.disabledButton,
-              ]}
-              onPress={handleSearch}
-              disabled={isSearchButtonDisabled || searching}
-            >
-              <Text style={styles.searchButtonText}>Search</Text>
-            </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <MaterialIcons
+              name="phone"
+              size={20}
+              color="#666"
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              placeholder="Enter your mobile number"
+              placeholderTextColor="#999"
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+            />
           </View>
+        </MotiView>
 
-          <View style={styles.searchTypeContainer}>
+        {/* Connect with friends section */}
+        <MotiView
+          from={{ opacity: 0, translateY: 20 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: "timing", duration: 500, delay: 200 }}
+          style={styles.section}
+        >
+          <Text style={styles.sectionTitle}>Connect With Friends</Text>
+          <Text style={styles.sectionSubtitle}>
+            Choose one of the options below to connect with friends
+          </Text>
+
+          {/* Option cards */}
+          <View style={styles.optionsContainer}>
+            {/* Import from contacts */}
             <TouchableOpacity
-              style={[
-                styles.searchTypeButton,
-                searchType === "username" && styles.activeSearchTypeButton,
-              ]}
-              onPress={() => setSearchType("username")}
+              style={styles.optionCard}
+              onPress={getContacts}
+              disabled={loading}
             >
-              <Text
+              <View
                 style={[
-                  styles.searchTypeText,
-                  searchType === "username" && styles.activeSearchTypeText,
+                  styles.optionIconContainer,
+                  { backgroundColor: "#E3F2FD" },
                 ]}
               >
-                Username
+                <MaterialIcons name="contacts" size={24} color="#2196F3" />
+              </View>
+              <Text style={styles.optionTitle}>Import from Contacts</Text>
+              <Text style={styles.optionDescription}>
+                Find friends already using BondFyre
               </Text>
             </TouchableOpacity>
 
+            {/* Share invite code */}
             <TouchableOpacity
-              style={[
-                styles.searchTypeButton,
-                searchType === "phone" && styles.activeSearchTypeButton,
-              ]}
-              onPress={() => setSearchType("phone")}
+              style={styles.optionCard}
+              onPress={() => setShowInviteCodeModal(true)}
             >
-              <Text
+              <View
                 style={[
-                  styles.searchTypeText,
-                  searchType === "phone" && styles.activeSearchTypeText,
+                  styles.optionIconContainer,
+                  { backgroundColor: "#FFF8E1" },
                 ]}
               >
-                Phone
+                <MaterialIcons name="share" size={24} color="#FFC107" />
+              </View>
+              <Text style={styles.optionTitle}>Share Invite Code</Text>
+              <Text style={styles.optionDescription}>
+                Invite friends to join BondFyre
+              </Text>
+            </TouchableOpacity>
+
+            {/* Enter invite code */}
+            <TouchableOpacity
+              style={styles.optionCard}
+              onPress={() => setShowJoinGroupModal(true)}
+            >
+              <View
+                style={[
+                  styles.optionIconContainer,
+                  { backgroundColor: "#E8F5E9" },
+                ]}
+              >
+                <MaterialIcons name="group-add" size={24} color="#4CAF50" />
+              </View>
+              <Text style={styles.optionTitle}>Enter Invite Code</Text>
+              <Text style={styles.optionDescription}>
+                Join your friends using their code
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Selected friends section */}
-        {selectedFriends.length > 0 && (
-          <View style={styles.selectedFriendsContainer}>
-            <Text style={styles.sectionTitle}>
-              Selected Friends ({selectedFriends.length}/{MAX_FRIENDS})
-            </Text>
-            <FlatList
-              data={selectedFriends}
-              renderItem={renderSelectedFriendItem}
-              keyExtractor={(item) => item._id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.selectedFriendsList}
-            />
-          </View>
-        )}
-
-        {/* Search results */}
-        {searchResults.length > 0 && (
-          <View style={styles.resultsContainer}>
-            <Text style={styles.sectionTitle}>Search Results</Text>
-            <FlatList
-              data={searchResults}
-              renderItem={renderFriendItem}
-              keyExtractor={(item) => item._id}
-              style={styles.resultsList}
-              contentContainerStyle={styles.resultsListContent}
-            />
-          </View>
-        )}
-
-        {/* No results message */}
-        {searchQuery.length > 0 && searchResults.length === 0 && !searching && (
-          <View style={styles.noResultsContainer}>
-            <Ionicons name="search-outline" size={50} color="#CCC" />
-            <Text style={styles.noResultsText}>No users found.</Text>
-            <Text style={styles.noResultsSubText}>
-              Try a different search term or invite your friends to join 2UO.
-            </Text>
-          </View>
-        )}
+        </MotiView>
 
         {/* Skip option */}
         <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-          <Text style={styles.skipText}>Skip this step</Text>
+          <Text style={styles.skipText}>Skip adding friends</Text>
         </TouchableOpacity>
+
+        {/* Contacts Modal */}
+        <Modal
+          visible={showContactsModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowContactsModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Contacts</Text>
+                <TouchableOpacity
+                  onPress={() => setShowContactsModal(false)}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              {loading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color="#FF4C67" />
+                  <Text style={styles.loadingText}>Loading contacts...</Text>
+                </View>
+              ) : (
+                <>
+                  <FlatList
+                    data={contacts}
+                    renderItem={renderContactItem}
+                    keyExtractor={(item) => item.id}
+                    style={styles.contactsList}
+                    contentContainerStyle={styles.contactsListContent}
+                  />
+
+                  <TouchableOpacity
+                    style={styles.primaryButton}
+                    onPress={saveSelectedContacts}
+                  >
+                    <Text style={styles.primaryButtonText}>Send Invites</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Invite Code Modal */}
+        <Modal
+          visible={showInviteCodeModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowInviteCodeModal(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Share Invite Code</Text>
+                <TouchableOpacity
+                  onPress={() => setShowInviteCodeModal(false)}
+                  style={styles.closeButton}
+                >
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inviteCodeContainer}>
+                <InviteCodeCard
+                  inviteCode={inviteCode}
+                  onCopy={handleCopyInviteCode}
+                />
+
+                {isCopied && (
+                  <MotiView
+                    from={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ type: "spring", damping: 15 }}
+                    style={styles.copiedMessage}
+                  >
+                    <MaterialIcons
+                      name="check-circle"
+                      size={16}
+                      color="#4CAF50"
+                    />
+                    <Text style={styles.copiedText}>Copied to clipboard!</Text>
+                  </MotiView>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.primaryButton, { marginTop: 16 }]}
+                  onPress={shareInviteCode}
+                >
+                  <MaterialIcons
+                    name="share"
+                    size={18}
+                    color="white"
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={styles.primaryButtonText}>Share Code</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Join Group Modal */}
+        <JoinGroupModal
+          visible={showJoinGroupModal}
+          onClose={() => setShowJoinGroupModal(false)}
+          onGroupJoined={() => {
+            Alert.alert("Success", "You have successfully joined the group!");
+            setShowJoinGroupModal(false);
+          }}
+        />
       </StepContainer>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  searchContainer: {
-    marginBottom: 20,
-  },
-  searchBarContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  searchInputContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F3F3F3",
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    height: 48,
-    marginRight: 10,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    height: 48,
-    fontSize: 16,
-    color: "#333",
-  },
-  searchButton: {
-    backgroundColor: "#FF4C67",
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    height: 48,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  disabledButton: {
-    backgroundColor: "#FFCDD2",
-  },
-  searchButtonText: {
-    color: "white",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  searchTypeContainer: {
-    flexDirection: "row",
-    borderRadius: 20,
-    backgroundColor: "#F3F3F3",
-    overflow: "hidden",
-  },
-  searchTypeButton: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-  },
-  activeSearchTypeButton: {
-    backgroundColor: "#FF4C67",
-  },
-  searchTypeText: {
-    fontSize: 14,
-    color: "#777",
-  },
-  activeSearchTypeText: {
-    color: "white",
-    fontWeight: "600",
-  },
-  selectedFriendsContainer: {
-    marginBottom: 20,
+  section: {
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
-    marginBottom: 10,
-    color: "#555",
-  },
-  selectedFriendsList: {
-    paddingVertical: 5,
-  },
-  selectedFriendChip: {
-    backgroundColor: "#FFF0F0",
-    borderRadius: 25,
-    marginRight: 10,
-    padding: 5,
-    borderWidth: 1,
-    borderColor: "#FFD6DE",
-  },
-  chipContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 5,
-  },
-  chipAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 5,
-  },
-  chipAvatarFallback: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#FF4C67",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 5,
-  },
-  chipAvatarText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  chipName: {
-    fontSize: 14,
-    marginRight: 5,
+    marginBottom: 6,
     color: "#333",
   },
-  chipRemove: {
-    padding: 2,
+  sectionSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 16,
   },
-  resultsContainer: {
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    backgroundColor: "#F8F8F8",
+    height: 50,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
     flex: 1,
+    fontSize: 16,
+    color: "#333",
   },
-  resultsList: {
+  optionsContainer: {
+    marginTop: 8,
+  },
+  optionCard: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  optionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  optionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 6,
+  },
+  optionDescription: {
+    fontSize: 14,
+    color: "#666",
+  },
+  skipButton: {
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  skipText: {
+    color: "#777",
+    fontSize: 14,
+  },
+  modalContainer: {
     flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
-  resultsListContent: {
-    paddingBottom: 20,
+  modalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "80%",
   },
-  friendItem: {
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEEEEE",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  closeButton: {
+    padding: 4,
+  },
+  contactsList: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  contactsListContent: {
+    paddingBottom: 16,
+  },
+  contactItem: {
     flexDirection: "row",
     alignItems: "center",
     padding: 12,
     backgroundColor: "white",
     borderRadius: 12,
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
   },
-  selectedFriendItem: {
+  selectedContactItem: {
     backgroundColor: "#FFF0F0",
     borderColor: "#FFD6DE",
-    borderWidth: 1,
   },
-  friendAvatar: {
+  contactAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -483,25 +588,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 12,
   },
-  avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#555",
-  },
-  friendInfo: {
+  contactInfo: {
     flex: 1,
   },
-  friendName: {
+  contactName: {
     fontSize: 16,
     fontWeight: "600",
     color: "#333",
   },
-  friendDetail: {
+  contactDetail: {
     fontSize: 14,
     color: "#777",
   },
@@ -510,30 +605,47 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  noResultsContainer: {
+  primaryButton: {
+    backgroundColor: "#FF4C67",
+    borderRadius: 12,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  primaryButtonText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
-  noResultsText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#555",
-    marginTop: 10,
+  loadingText: {
+    fontSize: 16,
+    color: "#666",
+    marginTop: 12,
   },
-  noResultsSubText: {
-    fontSize: 14,
-    color: "#777",
-    textAlign: "center",
-    marginTop: 5,
+  inviteCodeContainer: {
+    padding: 8,
   },
-  skipButton: {
-    paddingVertical: 12,
+  copiedMessage: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
   },
-  skipText: {
-    color: "#777",
+  copiedText: {
+    marginLeft: 6,
+    color: "#4CAF50",
     fontSize: 14,
+  },
+  avatarText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#555",
   },
 });

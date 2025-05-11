@@ -1,0 +1,19 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .text {
+      font-family: 'Arial Rounded MT Bold', 'Helvetica Rounded', Arial, sans-serif;
+      font-size: 48px;
+      fill: #FF6B6B;
+    }
+
+    .heart {
+      fill: #FF6B6B;
+    }
+  </style>
+  <!-- Heart Shape -->
+  <path class="heart"
+    d="M100 40 C100 25, 130 25, 130 50 C130 70, 100 90, 100 90 C100 90, 70 70, 70 50 C70 25, 100 25, 100 40 Z" />
+
+  <!-- Text "2uo" -->
+  <text x="50" y="150" class="text">2uo</text>
+</svg>

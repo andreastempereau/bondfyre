@@ -8,12 +8,12 @@ import {
   rejectFriendRequest,
   removeFriend,
 } from "../controllers/friendController";
-import { authenticateToken } from "../middleware";
+import { auth } from "../middleware";
 
 const router = express.Router();
 
 // Apply authentication middleware to all routes
-router.use(authenticateToken);
+router.use(auth);
 
 // Get friends
 router.get("/", getFriends);

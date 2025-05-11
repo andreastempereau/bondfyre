@@ -65,8 +65,6 @@ export default function CreateGroupModal({
 
       Alert.alert("Success", "Group created successfully!");
     } catch (error: any) {
-      console.log(error);
-
       setLoading(false);
       Alert.alert(
         "Error",

@@ -3,20 +3,26 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { User } from "../models";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password, name, profile } = req.body;
-
-    console.log("Registration attempt for email:", email);
+    const { email, password, name, profile, phoneNumber, username } = req.body;
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      console.log("User already exists");
       res.status(400).json({ message: "User already exists" });
       return;
+    }
+
+    // Check if username is provided and already exists
+    if (username) {
+      const usernameExists = await User.findOne({ username });
+      if (usernameExists) {
+        res.status(400).json({ message: "Username already taken" });
+        return;
+      }
     }
 
     // Create new user with profile information - let the model's pre-save hook handle password hashing
@@ -29,10 +35,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       gender: profile?.gender,
       interests: profile?.interests || [],
       photos: profile?.photos || [],
+      phoneNumber,
+      username,
     });
 
     await user.save();
-    console.log("User registered successfully");
 
     // Create token
     const token = jwt.sign({ userId: user._id }, JWT_SECRET);
@@ -48,10 +55,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         gender: user.gender,
         interests: user.interests,
         photos: user.photos,
+        phoneNumber: user.phoneNumber,
+        username: user.username,
       },
     });
   } catch (error: any) {
-    console.error("Registration error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -59,31 +67,25 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
-    console.log("Login attempt for email:", email);
 
     // Check if user exists
     const user = await User.findOne({ email });
-    console.log("User found:", user ? "Yes" : "No");
 
     if (!user) {
-      console.log("User not found");
       res.status(400).json({ message: "Invalid credentials" });
       return;
     }
 
     // Check password using the model's comparePassword method
     const isMatch = await user.comparePassword(password);
-    console.log("Password match:", isMatch);
 
     if (!isMatch) {
-      console.log("Password mismatch");
       res.status(400).json({ message: "Invalid credentials" });
       return;
     }
 
     // Create token
     const token = jwt.sign({ userId: user._id }, JWT_SECRET);
-    console.log("Login successful, token generated");
 
     res.json({
       token,
@@ -96,10 +98,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         gender: user.gender,
         interests: user.interests,
         photos: user.photos,
+        phoneNumber: user.phoneNumber,
+        username: user.username,
       },
     });
   } catch (error: any) {
-    console.error("Login error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -109,42 +112,19 @@ export const refreshToken = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { userId } = req.body;
-    console.log("Token refresh request for userId:", userId);
+    // User is already authenticated via middleware
+    const user = req.user;
 
-    if (!userId) {
-      console.log("No userId provided for token refresh");
-      res.status(400).json({ message: "User ID is required" });
-      return;
-    }
-
-    // Find the user
-    const user = await User.findById(userId);
     if (!user) {
-      console.log("User not found for token refresh");
-      res.status(404).json({ message: "User not found" });
+      res.status(401).json({ message: "Authentication required" });
       return;
     }
 
-    // Generate a new token
+    // Generate a fresh token
     const token = jwt.sign({ userId: user._id }, JWT_SECRET);
-    console.log("Token refreshed successfully");
 
-    res.json({
-      token,
-      user: {
-        _id: user._id,
-        email: user.email,
-        name: user.name,
-        bio: user.bio,
-        age: user.age,
-        gender: user.gender,
-        interests: user.interests,
-        photos: user.photos,
-      },
-    });
+    res.json({ token });
   } catch (error: any) {
-    console.error("Token refresh error:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -155,7 +135,6 @@ export const resetPassword = async (
 ): Promise<void> => {
   try {
     const { email, newPassword } = req.body;
-    console.log("Resetting password for email:", email);
 
     // Check if user exists
     const user = await User.findOne({ email });
@@ -167,7 +146,6 @@ export const resetPassword = async (
     // Hash new password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
-    console.log("New password hash:", hashedPassword);
 
     // Update user password
     user.password = hashedPassword;
@@ -175,7 +153,6 @@ export const resetPassword = async (
 
     res.json({ message: "Password reset successfully" });
   } catch (error: any) {
-    console.error("Password reset error:", error);
     res.status(500).json({ message: error.message });
   }
 };

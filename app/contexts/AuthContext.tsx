@@ -12,6 +12,8 @@ export interface Profile {
   gender?: string;
   interests?: string[];
   photos?: string[];
+  phoneNumber?: string;
+  username?: string;
 }
 
 export interface User {
@@ -23,6 +25,8 @@ export interface User {
   gender?: string;
   interests?: string[];
   photos?: string[];
+  phoneNumber?: string;
+  username?: string;
   profile?: Profile; // Keep for backward compatibility
 }
 
@@ -38,6 +42,7 @@ interface AuthContextType {
   ) => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshToken: () => Promise<boolean>;
   loading: boolean;
 }
 
@@ -156,6 +161,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password,
           name,
           profile,
+          phoneNumber: profile.phoneNumber,
+          username: profile.username,
         }
       );
 
@@ -183,6 +190,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       normalizedUser.interests =
         userData.interests || userData.profile.interests || [];
       normalizedUser.photos = userData.photos || userData.profile.photos || [];
+      normalizedUser.phoneNumber =
+        userData.phoneNumber || userData.profile.phoneNumber;
+      normalizedUser.username = userData.username || userData.profile.username;
     }
 
     return normalizedUser;
@@ -214,21 +224,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await AsyncStorage.multiRemove([
-        Config.STORAGE_KEYS.AUTH_TOKEN,
-        Config.STORAGE_KEYS.USER_DATA,
-      ]);
+      await AsyncStorage.removeItem(Config.STORAGE_KEYS.AUTH_TOKEN);
+      await AsyncStorage.removeItem(Config.STORAGE_KEYS.USER_DATA);
       setToken(null);
       setUser(null);
+      console.log("User signed out");
     } catch (error) {
       console.error("Sign out error:", error);
-      throw new Error("Failed to sign out");
+    }
+  };
+
+  // Refresh token method - attempt to get a new token if the current one is invalid
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      console.log("Attempting to refresh auth token...");
+      if (!user) return false;
+
+      // Make API call to refresh endpoint
+      const response = await apiService.post<{ token: string }>(
+        "/auth/token/refresh"
+      );
+
+      if (response.token) {
+        console.log("Token refreshed successfully");
+
+        // Update stored token
+        await AsyncStorage.setItem(
+          Config.STORAGE_KEYS.AUTH_TOKEN,
+          response.token
+        );
+        setToken(response.token);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      return false;
     }
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, token, signIn, signUp, updateUser, signOut, loading }}
+      value={{
+        user,
+        token,
+        signIn,
+        signUp,
+        updateUser,
+        signOut,
+        refreshToken, // Add the refresh token method to the context
+        loading,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -63,6 +63,7 @@ export default function ProfileScreen() {
     age: (user.age || user.profile?.age || "").toString(),
     gender: user.gender || user.profile?.gender || "",
     interests: (user.interests || user.profile?.interests || []).join(", "),
+    phoneNumber: user.phoneNumber || "",
   };
 
   const pickImage = async () => {
@@ -196,6 +197,7 @@ export default function ProfileScreen() {
         gender: data.gender,
         interests: interestsArray,
         photos: photos,
+        phoneNumber: data.phoneNumber,
       };
 
       await apiService.put(`/users/profile`, updatedUserData);
@@ -388,6 +390,12 @@ export default function ProfileScreen() {
                 {(user.gender || user.profile?.gender) && (
                   <Text style={styles.detail}>
                     {user.gender || user.profile?.gender}
+                  </Text>
+                )}
+                {user.phoneNumber && (
+                  <Text style={styles.detail}>
+                    <FontAwesome name="phone" size={14} color="#666" />{" "}
+                    {user.phoneNumber}
                   </Text>
                 )}
               </>

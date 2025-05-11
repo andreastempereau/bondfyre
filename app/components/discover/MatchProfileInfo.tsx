@@ -40,7 +40,6 @@ const MatchProfileInfo: React.FC<MatchProfileInfoProps> = ({ profile }) => {
   const handleImageError = (memberId: string) => {
     setLoadingImages((prev) => ({ ...prev, [memberId]: false }));
     setErrorImages((prev) => ({ ...prev, [memberId]: true }));
-    console.log(`Failed to load image for member ${memberId}`);
   };
 
   return (
@@ -53,14 +52,15 @@ const MatchProfileInfo: React.FC<MatchProfileInfoProps> = ({ profile }) => {
       <View style={styles.header}>
         <Text style={styles.groupName}>{profile.name}</Text>
 
-        {profile.relevanceScore && (
-          <View style={styles.scoreContainer}>
-            <Text style={styles.scoreText}>
-              {Math.round(profile.relevanceScore)}%
-            </Text>
-            <Text style={styles.scoreLabel}>Match</Text>
-          </View>
-        )}
+        {profile.relevanceScore !== undefined &&
+          profile.relevanceScore !== null && (
+            <View style={styles.scoreContainer}>
+              <Text style={styles.scoreText}>
+                {`${Math.round(Number(profile.relevanceScore))}%`}
+              </Text>
+              <Text style={styles.scoreLabel}>Match</Text>
+            </View>
+          )}
       </View>
 
       {/* Matching Interests Highlight */}
@@ -70,8 +70,9 @@ const MatchProfileInfo: React.FC<MatchProfileInfoProps> = ({ profile }) => {
             <FontAwesome name="star" size={14} color="#FFC107" />
           </View>
           <Text style={styles.matchingText}>
-            You have {profile.matchingInterests?.length} interest
-            {profile.matchingInterests?.length !== 1 ? "s" : ""} in common
+            {`You have ${profile.matchingInterests?.length} interest${
+              profile.matchingInterests?.length !== 1 ? "s" : ""
+            } in common`}
           </Text>
         </View>
       )}
@@ -83,8 +84,9 @@ const MatchProfileInfo: React.FC<MatchProfileInfoProps> = ({ profile }) => {
             <FontAwesome name="link" size={14} color="#4A90E2" />
           </View>
           <Text style={styles.matchingText}>
-            {profile.mutualConnections} mutual connection
-            {profile.mutualConnections !== 1 ? "s" : ""}
+            {`${profile.mutualConnections} mutual connection${
+              profile.mutualConnections !== 1 ? "s" : ""
+            }`}
           </Text>
         </View>
       )}
@@ -120,12 +122,12 @@ const MatchProfileInfo: React.FC<MatchProfileInfoProps> = ({ profile }) => {
                 )}
               </View>
               <View style={styles.memberDetails}>
-                <Text style={styles.memberName}>
-                  {member.name}
+                <View style={styles.nameAgeContainer}>
+                  <Text style={styles.memberName}>{member.name}</Text>
                   {typeof member.age !== "undefined" && (
                     <Text style={styles.memberAge}> {String(member.age)}</Text>
                   )}
-                </Text>
+                </View>
                 <View style={styles.memberGenderContainer}>
                   <FontAwesome
                     name={member.gender === "male" ? "mars" : "venus"}
@@ -250,6 +252,10 @@ const styles = StyleSheet.create({
   },
   memberDetails: {
     flex: 1,
+  },
+  nameAgeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   memberName: {
     fontWeight: "500",

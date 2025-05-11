@@ -1,5 +1,5 @@
 import express from "express";
-import { auth } from "../middleware/auth";
+import { auth } from "../middleware";
 import { discoverGroups, discoverUsers } from "../controllers";
 
 const router = express.Router();

@@ -97,7 +97,9 @@ export default function DiscoverScreen() {
             item.photos && item.photos.length > 0
               ? item.photos
               : ["https://via.placeholder.com/500"],
-          relevanceScore: item.relevanceScore,
+          relevanceScore: item.relevanceScore
+            ? Number(item.relevanceScore)
+            : undefined,
           matchingInterests: item.matchingInterests || [],
           mutualConnections: item.mutualConnections || 0,
           isGroupConnection: item.isGroupConnection || false,
@@ -286,7 +288,12 @@ export default function DiscoverScreen() {
           {/* Current card */}
           {profiles[currentIndex] && (
             <SwipeCard
-              profile={profiles[currentIndex]}
+              profile={{
+                ...profiles[currentIndex],
+                relevanceScore: profiles[currentIndex].relevanceScore
+                  ? Number(profiles[currentIndex].relevanceScore)
+                  : undefined,
+              }}
               currentPhotoIndex={currentPhotoIndex}
               onPhotoPress={handlePhotoPress}
               onGestureEvent={onGestureEvent}

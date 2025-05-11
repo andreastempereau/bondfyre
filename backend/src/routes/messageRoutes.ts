@@ -1,5 +1,5 @@
 import express from "express";
-import { auth } from "../middleware/auth";
+import { auth } from "../middleware";
 import { getMessages, sendMessage, markMessagesAsRead } from "../controllers";
 
 const router = express.Router();
