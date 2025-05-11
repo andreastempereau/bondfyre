@@ -1,6 +1,6 @@
-# BondFyre API Backend
+# 2UO API Backend
 
-This is the backend API for the BondFyre group dating app.
+This is the backend API for the 2UO group dating app.
 
 ## Features
 

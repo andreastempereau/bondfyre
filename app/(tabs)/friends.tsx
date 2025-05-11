@@ -370,7 +370,7 @@ const FriendsScreen = () => {
   const shareInviteCode = async () => {
     try {
       await Share.share({
-        message: `Join me on BondFyre! Use my invite code: ${inviteCode}`,
+        message: `Join me on 2UO! Use my invite code: ${inviteCode}`,
       });
     } catch (error) {
       console.error("Error sharing invite code:", error);

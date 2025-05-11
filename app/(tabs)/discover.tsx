@@ -33,6 +33,7 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
 
 export default function DiscoverScreen() {
+  // Hooks must run unconditionally
   const { user, loading: authLoading } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [profiles, setProfiles] = useState<GroupProfile[]>([]);
@@ -47,36 +48,19 @@ export default function DiscoverScreen() {
   const [matchDetails, setMatchDetails] = useState<any>(null);
   const router = useRouter();
 
-  // If authentication is still loading, show a loading indicator
-  if (authLoading) {
-    return (
-      <View style={[styles.container, styles.centeredContent]}>
-        <ActivityIndicator size="large" color="#FF6B6B" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
-    );
-  }
-
-  // If user is not authenticated, show the unauthenticated view
-  if (!user) {
-    return <UnauthenticatedView />;
-  }
-
-  // Fetch discovery data (optimized: no offset dependency)
+  // Fetch discovery data
   const fetchDiscoveryData = useCallback(
     async (refresh = false) => {
       try {
         if (refresh) {
           setRefreshing(true);
-          setOffset(0); // Reset offset if refreshing
+          setOffset(0);
         } else {
           setLoading(true);
         }
         setError(null);
         const response = await apiService.get(
-          `/discovery/users?limit=10&offset=${
-            refresh ? 0 : offset
-          }&excludeSwiped=true`
+          `/discovery/users?limit=10&offset=${refresh ? 0 : offset}&excludeSwiped=true`
         );
         const data = (response as any).users;
         const hasMoreData = (response as any).hasMore;
@@ -116,22 +100,36 @@ export default function DiscoverScreen() {
         );
         setHasMore(hasMoreData);
       } catch (err) {
-        console.error(`Failed to fetch users:`, err);
-        setError(`Failed to load profiles`);
+        console.error("Failed to fetch users:", err);
+        setError("Failed to load profiles");
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [offset] // Only offset, not a function dependency
+    [offset]
   );
 
-  // Initial fetch: only run on mount
+  // Initial data load
   useEffect(() => {
     fetchDiscoveryData(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchDiscoveryData]);
 
+  // Early returns for auth
+  if (authLoading) {
+    return (
+      <View style={[styles.container, styles.centeredContent]}>
+        <ActivityIndicator size="large" color="#FF6B6B" />
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return <UnauthenticatedView />;
+  }
+
+  // Gesture handlers
   const onGestureEvent = Animated.event(
     [{ nativeEvent: { translationX: position.x, translationY: position.y } }],
     { useNativeDriver: false }
@@ -141,7 +139,7 @@ export default function DiscoverScreen() {
     if (event.nativeEvent.oldState === State.ACTIVE) {
       const { translationX } = event.nativeEvent;
       if (Math.abs(translationX) > SWIPE_THRESHOLD) {
-        const direction = translationX > 0 ? "right" : "left";
+        const direction: SwipeDirection = translationX > 0 ? "right" : "left";
         handleSwipe(direction);
       } else {
         Animated.spring(position, {
@@ -152,36 +150,33 @@ export default function DiscoverScreen() {
     }
   };
 
-  const handleSwipe = async (direction: SwipeDirection) => {
+  const handleSwipe = (direction: SwipeDirection) => {
     const x = direction === "right" ? SCREEN_WIDTH : -SCREEN_WIDTH;
     Animated.timing(position, {
       toValue: { x, y: 0 },
       duration: 250,
       useNativeDriver: false,
-    }).start(() => {
+    }).start(async () => {
       position.setValue({ x: 0, y: 0 });
-      if (currentIndex < profiles.length) {
-        const currentProfile = profiles[currentIndex];
-        apiService
-          .post("/swipes", {
+      const currentProfile = profiles[currentIndex];
+      if (currentProfile) {
+        try {
+          const response = await apiService.post("/swipes", {
             userId: currentProfile.id,
             direction,
-          })
-          .then((response: any) => {
-            if (response.isMatch) {
-              Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Success
-              );
-              setMatchDetails(response.matchDetails);
-              setMatchModal(true);
-            }
-          })
-          .catch((err) => {
-            console.error("Failed to record swipe:", err);
           });
+          if ((response as any).isMatch) {
+            await Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Success
+            );
+            setMatchDetails((response as any).matchDetails);
+            setMatchModal(true);
+          }
+        } catch (err) {
+          console.error("Failed to record swipe:", err);
+        }
       }
       setCurrentIndex((prev) => {
-        // Only fetch more if close to end and hasMore
         if (prev === profiles.length - 3 && hasMore) {
           fetchDiscoveryData(false);
         }
@@ -196,7 +191,6 @@ export default function DiscoverScreen() {
       inputRange: [-SCREEN_WIDTH * 1.5, 0, SCREEN_WIDTH * 1.5],
       outputRange: ["-30deg", "0deg", "30deg"],
     });
-
     return {
       ...position.getLayout(),
       transform: [{ rotate }],
@@ -204,32 +198,27 @@ export default function DiscoverScreen() {
   };
 
   const handlePhotoPress = () => {
-    const currentProfile = profiles[currentIndex];
-    setCurrentPhotoIndex((prev) =>
-      prev === currentProfile.photos.length - 1 ? 0 : prev + 1
-    );
+    const profile = profiles[currentIndex];
+    if (profile) {
+      setCurrentPhotoIndex((prev) =>
+        prev === profile.photos.length - 1 ? 0 : prev + 1
+      );
+    }
   };
 
-  const onRefresh = () => {
-    fetchDiscoveryData(true);
-  };
+  const onRefresh = () => fetchDiscoveryData(true);
 
-  // Handle sending a message to the new match
   const handleMessageMatch = () => {
     setMatchModal(false);
     if (matchDetails?._id) {
-      // Navigate to messages with the match ID
       router.push(`/messages/${matchDetails._id}`);
     }
   };
 
-  const handleCloseMatchModal = () => {
-    setMatchModal(false);
-  };
+  const handleCloseMatchModal = () => setMatchModal(false);
 
-  // Render main content for discover screen
+  // Render content based on state
   const renderContent = () => {
-    // If we're still loading the initial batch and there are no profiles yet
     if (loading && profiles.length === 0) {
       return (
         <View style={[styles.container, styles.centeredContent]}>
@@ -238,8 +227,6 @@ export default function DiscoverScreen() {
         </View>
       );
     }
-
-    // If there was an error loading profiles
     if (error && profiles.length === 0) {
       return (
         <View style={[styles.container, styles.centeredContent]}>
@@ -260,8 +247,6 @@ export default function DiscoverScreen() {
         </View>
       );
     }
-
-    // If we've gone through all profiles
     if (currentIndex >= profiles.length) {
       return (
         <View style={[styles.container, styles.centeredContent]}>
@@ -280,30 +265,18 @@ export default function DiscoverScreen() {
         </View>
       );
     }
-
-    // Render the swipe card interface
     return (
       <View style={styles.container}>
         <View style={styles.cardsContainer}>
-          {/* Current card */}
-          {profiles[currentIndex] && (
-            <SwipeCard
-              profile={{
-                ...profiles[currentIndex],
-                relevanceScore: profiles[currentIndex].relevanceScore
-                  ? Number(profiles[currentIndex].relevanceScore)
-                  : undefined,
-              }}
-              currentPhotoIndex={currentPhotoIndex}
-              onPhotoPress={handlePhotoPress}
-              onGestureEvent={onGestureEvent}
-              onHandlerStateChange={onHandlerStateChange}
-              cardStyle={getCardStyle()}
-            />
-          )}
+          <SwipeCard
+            profile={profiles[currentIndex]}
+            currentPhotoIndex={currentPhotoIndex}
+            onPhotoPress={handlePhotoPress}
+            onGestureEvent={onGestureEvent}
+            onHandlerStateChange={onHandlerStateChange}
+            cardStyle={getCardStyle()}
+          />
         </View>
-
-        {/* Action buttons for swiping left/right */}
         <ActionButtons onSwipe={handleSwipe} />
       </View>
     );
@@ -312,13 +285,10 @@ export default function DiscoverScreen() {
   return (
     <View style={styles.outerContainer}>
       <StatusBar style={Platform.OS === "ios" ? "light" : "auto"} />
-
       {renderContent()}
-
-      {/* Match modal */}
       <Modal
         animationType="fade"
-        transparent={true}
+        transparent
         visible={matchModal}
         onRequestClose={handleCloseMatchModal}
       >
@@ -333,11 +303,9 @@ export default function DiscoverScreen() {
                 <FontAwesome name="times" size={22} color="#666" />
               </TouchableOpacity>
             </View>
-
             <Text style={styles.matchDescription}>
               You and {matchDetails?.name || "someone"} liked each other!
             </Text>
-
             <View style={styles.matchImagesContainer}>
               <Image
                 source={{
@@ -357,14 +325,12 @@ export default function DiscoverScreen() {
                 style={styles.matchImage}
               />
             </View>
-
             <TouchableOpacity
               style={styles.messageButton}
               onPress={handleMessageMatch}
             >
               <Text style={styles.messageButtonText}>Send a Message</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.continueButton}
               onPress={handleCloseMatchModal}
@@ -395,81 +361,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  header: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 5,
-    marginBottom: 10,
-  },
-  tabsContainer: {
-    flexDirection: "row",
-    backgroundColor: "#eee",
-    borderRadius: 20,
-    marginBottom: 10,
-    padding: 4,
-  },
-  tab: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    minWidth: 100,
-    alignItems: "center",
-  },
-  activeTab: {
-    backgroundColor: "white",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
-  },
-  tabText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  activeTabText: {
-    fontWeight: "600",
-    color: "#333",
-  },
   cardsContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
   },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: "#666",
-  },
+  loadingText: { marginTop: 10, fontSize: 16, color: "#666" },
   errorContainer: {
     flexGrow: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 20,
   },
-  errorText: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: "#FF6B6B",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-  },
-  retryButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  errorText: { fontSize: 16, color: "#666", textAlign: "center", marginBottom: 20 },
+  retryButton: { backgroundColor: "#FF6B6B", padding: 10, borderRadius: 20 },
+  retryButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -478,99 +385,25 @@ const styles = StyleSheet.create({
   },
   matchModalContainer: {
     width: "85%",
-    backgroundColor: "white",
+    backgroundColor: "#fff",
     borderRadius: 20,
     padding: 20,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
   },
-  matchHeader: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 15,
-    position: "relative",
-  },
-  closeButton: {
-    position: "absolute",
-    right: 0,
-    top: 0,
-    padding: 5,
-  },
-  matchTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  matchDescription: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  matchImagesContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  matchImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginHorizontal: 5,
-  },
-  matchIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "white",
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: -5, // Overlap the images slightly
-    zIndex: 1,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  messageButton: {
-    backgroundColor: "#FF6B6B",
-    width: "100%",
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginBottom: 10,
-  },
-  messageButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  continueButton: {
-    backgroundColor: "transparent",
-    width: "100%",
-    paddingVertical: 12,
-    borderRadius: 25,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  continueButtonText: {
-    color: "#666",
-    fontSize: 16,
-    fontWeight: "500",
-    textAlign: "center",
-  },
+  matchHeader: { width: "100%", flexDirection: "row", justifyContent: "center", alignItems: "center", marginBottom: 15, position: "relative" },
+  closeButton: { position: "absolute", right: 0, top: 0, padding: 5 },
+  matchTitle: { fontSize: 22, fontWeight: "bold", color: "#333" },
+  matchDescription: { fontSize: 16, color: "#666", textAlign: "center", marginBottom: 20 },
+  matchImagesContainer: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 20 },
+  matchImage: { width: 100, height: 100, borderRadius: 50, marginHorizontal: 5 },
+  matchIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", marginHorizontal: -5, zIndex: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 3 },
+  messageButton: { backgroundColor: "#FF6B6B", width: "100%", paddingVertical: 12, borderRadius: 25, marginBottom: 10 },
+  messageButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", textAlign: "center" },
+  continueButton: { width: "100%", paddingVertical: 12, borderRadius: 25, borderWidth: 1, borderColor: "#ddd" },
+  continueButtonText: { color: "#666", fontSize: 16, fontWeight: "500", textAlign: "center" },
 });

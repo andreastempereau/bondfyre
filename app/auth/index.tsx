@@ -164,7 +164,7 @@ export default function AuthScreen() {
                 },
               ]}
             >
-              <Text style={styles.welcomeTitle}>Welcome to Bondfyre</Text>
+              <Text style={styles.welcomeTitle}>Welcome to 2UO</Text>
               <Text style={styles.welcomeText}>
                 Connect with your friends and go on a double-date
               </Text>

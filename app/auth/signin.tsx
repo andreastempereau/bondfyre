@@ -70,7 +70,7 @@ export default function SignInScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContainer}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>bondfyre</Text>
+            <Text style={styles.logoText}>2UO</Text>
           </View>
 
           <View style={styles.formContainer}>

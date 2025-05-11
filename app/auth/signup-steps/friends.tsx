@@ -130,7 +130,7 @@ export default function FriendsStep() {
   const shareInviteCode = async () => {
     try {
       await Share.share({
-        message: `Join me on BondFyre! Use my invite code: ${inviteCode}`,
+        message: `Join me on 2UO! Use my invite code: ${inviteCode}`,
       });
     } catch (error) {
       console.error("Error sharing invite code:", error);
@@ -288,7 +288,7 @@ export default function FriendsStep() {
               </View>
               <Text style={styles.optionTitle}>Import from Contacts</Text>
               <Text style={styles.optionDescription}>
-                Find friends already using BondFyre
+                Find friends already using 2UO
               </Text>
             </TouchableOpacity>
 
@@ -307,7 +307,7 @@ export default function FriendsStep() {
               </View>
               <Text style={styles.optionTitle}>Share Invite Code</Text>
               <Text style={styles.optionDescription}>
-                Invite friends to join BondFyre
+                Invite friends to join 2UO
               </Text>
             </TouchableOpacity>
 

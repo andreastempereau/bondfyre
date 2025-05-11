@@ -12,7 +12,7 @@ export const UnauthenticatedView = () => {
         source={require("../../../assets/images/icon.png")}
         style={styles.logoImage}
       />
-      <Text style={styles.welcomeTitle}>Welcome to Bondfyre</Text>
+      <Text style={styles.welcomeTitle}>Welcome to 2UO</Text>
       <Text style={styles.welcomeText}>
         Sign in or create an account to view and edit your profile
       </Text>
