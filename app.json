@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -15,24 +15,53 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+      "supportsTablet": true,
+      "bundleIdentifier": "com.2uo.2uo",
+      "buildNumber": "1.0.0",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSContactsUsageDescription": "We need to access your contacts so you can quickly invite friends to join you on 2UO.",
+        "NSCameraUsageDescription": "We need to access your camera so you can take photos and upload them to 2UO.",
+        "NSPhotoLibraryUsageDescription": "We need access to your photo library so you can select and put images on profile in 2UO.",
+        "NSLocationWhenInUseUsageDescription": "We need your location to show you nearby matches in 2UO."
       }
     },
-    "web": {
-      "favicon": "./assets/images/favicon.png"
+    "extra": {
+      "eas": {
+        "projectId": "16e28058-2a87-4b55-933f-0e302ea49dea"
+      }
     },
-    "scheme": "2uo",
-    "plugins": [
-      "expo-splash-screen",
-      "expo-font",
-      "expo-router",
-      "expo-web-browser"
-    ],
-    "newArchEnabled": true
+    "android": {
+      "package": "com.x2uo.x2uo"
+    }
+  },
+  "android": {
+    "adaptiveIcon": {
+      "foregroundImage": "./assets/images/adaptive-icon.png",
+      "backgroundColor": "#ffffff"
+    }
+  },
+  "web": {
+    "favicon": "./assets/images/favicon.png"
+  },
+  "scheme": [
+    "uo2"
+  ],
+  "plugins": [
+    "expo-splash-screen",
+    "expo-font",
+    "expo-router",
+    "expo-web-browser",
+    "react-native-maps",
+    {
+      "skipNativeConfiguration": true
+    }
+  ],
+  "newArchEnabled": true,
+  "extra": {
+    "router": {},
+    "eas": {
+      "projectId": "16e28058-2a87-4b55-933f-0e302ea49dea"
+    }
   }
 }

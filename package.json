@@ -4,8 +4,8 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "dev:backend": "cd backend && bun run dev"
   },
@@ -18,7 +18,7 @@
     "@supabase/supabase-js": "^2.49.4",
     "axios": "^1.8.4",
     "base64-arraybuffer": "^1.0.2",
-    "expo": "53",
+    "expo": "53.0.9",
     "expo-blur": "~14.1.4",
     "expo-constants": "~17.1.5",
     "expo-contacts": "^14.2.4",
@@ -41,6 +41,7 @@
     "react-native": "0.79.2",
     "react-native-event-listeners": "^1.0.7",
     "react-native-gesture-handler": "~2.24.0",
+    "react-native-maps": "1.20.1",
     "react-native-reanimated": "~3.17.4",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.10.0",
