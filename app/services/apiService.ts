@@ -102,3 +102,8 @@ class ApiService {
 
 // Export a singleton instance
 export const apiService = new ApiService();
+
+// Adding default export to prevent Expo Router warning
+export default function ApiServiceModule() {
+  return null;
+}

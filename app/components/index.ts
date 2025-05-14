@@ -25,9 +25,9 @@ export * from "./discover/SwipeCard";
 export * from "./discover/ActionButtons";
 export * from "./discover/EmptyState";
 
-// Modal Components
-export { default as GroupModal } from "./modals/GroupModal";
-export { default as GroupSettingsModal } from "./modals/GroupSettingsModal";
+// Note: Modal components are imported directly in files where needed to avoid require cycles
+// export { default as GroupModal } from "./modals/GroupModal";
+// export { default as GroupSettingsModal } from "./modals/GroupSettingsModal";
 
 // Feature Components
 export { default as HapticTab } from "./features/HapticTab";

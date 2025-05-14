@@ -10,7 +10,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiService } from "../../services/apiService";
-import { Text } from "../index";
+import Text from "../ui/Text";
 
 interface GroupModalProps {
   visible: boolean;
