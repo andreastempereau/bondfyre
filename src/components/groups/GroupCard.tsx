@@ -2,7 +2,7 @@ import React from "react";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Text from "../ui/Text";
-import { useThemeColor } from "@/app/hooks/useThemeColor";
+import { useThemeColor } from "../../hooks/useThemeColor";
 // Import types from centralized location
 import { Group, Member } from "../../types/entities";
 import { GroupCardProps } from "../../types/components";

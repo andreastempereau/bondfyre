@@ -2,7 +2,7 @@ import React from "react";
 import { View, StyleSheet, TouchableOpacity, Image } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Text from "../ui/Text";
-import { useThemeColor } from "@/app/hooks/useThemeColor";
+import { useThemeColor } from "../../hooks/useThemeColor";
 
 interface GroupEmptyStateProps {
   onCreateGroup: () => void;

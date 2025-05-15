@@ -1,7 +1,7 @@
 import React from "react";
 import { View, StyleSheet, ActivityIndicator } from "react-native";
 import Text from "../ui/Text";
-import { useThemeColor } from "@/app/hooks/useThemeColor";
+import { useThemeColor } from "../../hooks/useThemeColor";
 
 export default function GroupsLoadingState() {
   const primaryColor = useThemeColor({}, "primary");

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, TouchableOpacity, StyleSheet } from "react-native";
-import Text from "@/app/components/ui/Text";
+import Text from "../../components/ui/Text";
 import { FontAwesome } from "@expo/vector-icons";
 
 interface ErrorDisplayProps {

@@ -9,7 +9,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Text from "../ui/Text";
 import { InviteCodeCardProps } from "./types";
-import { useThemeColor } from "@/app/hooks/useThemeColor";
+import { useThemeColor } from "../../hooks/useThemeColor";
 
 export default function InviteCodeCard({
   inviteCode,

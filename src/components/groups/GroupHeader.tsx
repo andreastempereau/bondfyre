@@ -2,7 +2,7 @@ import React, { ReactNode } from "react";
 import { View, StyleSheet } from "react-native";
 import Text from "../ui/Text";
 import { GroupHeaderProps } from "./types";
-import { useThemeColor } from "@/app/hooks/useThemeColor";
+import { useThemeColor } from "../../hooks/useThemeColor";
 
 export default function GroupHeader({
   title,

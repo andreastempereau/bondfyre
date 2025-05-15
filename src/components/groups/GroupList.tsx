@@ -3,7 +3,7 @@ import { FlatList, RefreshControl, StyleSheet, View } from "react-native";
 import GroupCard from "./GroupCard";
 import GroupEmptyState from "./GroupEmptyState";
 import Text from "../ui/Text";
-import { useThemeColor } from "@/app/hooks/useThemeColor";
+import { useThemeColor } from "../../hooks/useThemeColor";
 // Import types from centralized location
 import { Group } from "../../types/entities";
 import { GroupListProps } from "../../types/components";

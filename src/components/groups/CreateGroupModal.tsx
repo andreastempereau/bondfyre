@@ -13,8 +13,8 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import Text from "../ui/Text";
 import { CreateGroupModalProps } from "./types";
-import { useThemeColor } from "@/app/hooks/useThemeColor";
-import { apiService } from "@/app/services/apiService";
+import { useThemeColor } from "../../hooks/useThemeColor";
+import { apiService } from "../../services/apiService";
 
 export default function CreateGroupModal({
   visible,
