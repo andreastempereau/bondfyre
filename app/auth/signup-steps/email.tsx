@@ -10,8 +10,8 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { router } from "expo-router";
-import { useSignup, SignupStepName } from "../../contexts/SignupContext";
-import { StepContainer } from "../../components/forms/StepContainer";
+import { useSignup, SignupStepName } from "../../../src/contexts/SignupContext";
+import { StepContainer } from "../../../src/components/forms/StepContainer";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as yup from "yup";
 import { MotiView } from "moti";

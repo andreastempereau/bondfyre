@@ -9,9 +9,9 @@ import {
   RefreshControl,
 } from "react-native";
 import React, { useState, useEffect, useCallback } from "react";
-import { apiService } from "../services/apiService";
+import { apiService } from "../../src/services/apiService";
 import { useRouter } from "expo-router";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../../src/contexts/AuthContext";
 import { FontAwesome } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 

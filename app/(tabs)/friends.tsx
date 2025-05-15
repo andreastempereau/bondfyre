@@ -24,17 +24,17 @@ import {
 } from "@expo/vector-icons";
 
 // Import internal components
-import ThemedView from "@/app/components/layout/ThemedView";
-import Text from "@/app/components/ui/Text";
-import ErrorDisplay from "@/app/components/friends/ErrorDisplay"; // Import the new ErrorDisplay component
-import { UnauthenticatedView } from "../components/profile/UnauthenticatedView";
-import { InviteCodeCard, JoinGroupModal } from "../components/groups";
+import ThemedView from "../../src/components/layout/ThemedView";
+import Text from "../../src/components/ui/Text";
+import ErrorDisplay from "../../src/components/friends/ErrorDisplay"; // Import the new ErrorDisplay component
+import { UnauthenticatedView } from "../../src/components/profile/UnauthenticatedView";
+import { InviteCodeCard, JoinGroupModal } from "../../src/components/groups";
 
 // Import contexts and services
-import { useAuth } from "../contexts/AuthContext";
-import { useThemeColor } from "../hooks/useThemeColor";
-import { apiService } from "../services/apiService";
-import { Config } from "../config/environment";
+import { useAuth } from "../../src/contexts/AuthContext";
+import { useThemeColor } from "../../src/hooks/useThemeColor";
+import { apiService } from "../../src/services/apiService";
+import { Config } from "../../src/config/environment";
 
 // Friend interface definition
 interface Friend {

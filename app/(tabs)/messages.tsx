@@ -8,13 +8,13 @@ import {
   Image,
 } from "react-native";
 import React, { useState, useCallback, useEffect } from "react";
-import ThemedView from "@/app/components/layout/ThemedView";
-import Text from "@/app/components/ui/Text";
+import ThemedView from "../../src/components/layout/ThemedView";
+import Text from "../../src/components/ui/Text";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
-import { useThemeColor } from "../hooks/useThemeColor";
-import { apiService } from "../services/apiService";
-import { useAuth } from "../contexts/AuthContext";
-import { UnauthenticatedView } from "../components/profile/UnauthenticatedView";
+import { useThemeColor } from "../../src/hooks/useThemeColor";
+import { apiService } from "../../src/services/apiService";
+import { useAuth } from "../../src/contexts/AuthContext";
+import { UnauthenticatedView } from "../../src/components/profile/UnauthenticatedView";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -88,7 +88,7 @@ export default function MessagesScreen() {
       }
 
       // Get all group chats for the user
-      const response = await apiService.get("/group-chats");
+      const response = await apiService.get<Chat[]>("/group-chats");
       setChats(response || []);
       setError(null);
     } catch (error) {

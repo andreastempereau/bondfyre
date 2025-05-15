@@ -11,23 +11,23 @@ import {
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useAuth } from "../contexts/AuthContext";
-import { apiService } from "../services/apiService";
-import { uploadImage, deleteImage } from "../services/storageService";
+import { useAuth } from "../../src/contexts/AuthContext";
+import { apiService } from "../../src/services/apiService";
+import { uploadImage, deleteImage } from "../../src/services/storageService";
 import * as ImagePicker from "expo-image-picker";
-import ThemedView from "@/app/components/layout/ThemedView";
-import { useThemeColor } from "../hooks/useThemeColor";
+import ThemedView from "../../src/components/layout/ThemedView";
+import { useThemeColor } from "../../src/hooks/useThemeColor";
 
 // Import separated components
 import {
   ProfileHeader,
   ProfileEditForm,
   UnauthenticatedView,
-} from "../components/profile";
-import { ProfileEditValues } from "../components/profile/ProfileEditForm";
+} from "../../src/components/profile";
+import { ProfileEditValues } from "../../src/components/profile/ProfileEditForm";
 import { SafeAreaView } from "react-native-safe-area-context";
-import InterestTags from "../components/profile/InterestTags";
-import { DoubleDateFriendSelector } from "../components/features/DoubleDateFriendSelector";
+import InterestTags from "../../src/components/profile/InterestTags";
+import { DoubleDateFriendSelector } from "../../src/components/features/DoubleDateFriendSelector";
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();

@@ -1,11 +1,11 @@
 import { StyleSheet } from "react-native";
 
 // Import directly from specific files to avoid any module resolution issues
-import { ParallaxScrollView } from "@/app/components";
-import IconSymbol from "@/app/components/ui/IconSymbol";
+import { ParallaxScrollView } from "../../src/components";
+import IconSymbol from "../../src/components/ui/IconSymbol";
 
-import ThemedText from "@/app/components/layout/ThemedText";
-import ThemedView from "@/app/components/layout/ThemedView";
+import ThemedText from "../../src/components/layout/ThemedText";
+import ThemedView from "../../src/components/layout/ThemedView";
 
 export default function TabTwoScreen() {
   return (

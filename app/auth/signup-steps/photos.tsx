@@ -9,11 +9,11 @@ import {
   Alert,
   FlatList,
 } from "react-native";
-import { useSignup } from "../../contexts/SignupContext";
-import { StepContainer } from "../../components/forms/StepContainer";
+import { useSignup } from "../../../src/contexts/SignupContext";
+import { StepContainer } from "../../../src/components/forms/StepContainer";
 import { MaterialCommunityIcons, Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { uploadImage } from "../../services/storageService";
+import { uploadImage } from "../../../src/services/storageService";
 import { MotiView } from "moti";
 
 export default function PhotosStep() {

@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useThemeColor } from "../hooks/useThemeColor";
+import { useThemeColor } from "../../src/hooks/useThemeColor";
 
 const { width, height } = Dimensions.get("window");
 

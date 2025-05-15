@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
+    "scheme": "uo2",
     "splash": {
       "image": "./assets/images/splash.png",
       "resizeMode": "contain",
@@ -33,7 +34,10 @@
     },
     "android": {
       "package": "com.x2uo.x2uo"
-    }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   },
   "android": {
     "adaptiveIcon": {
@@ -46,16 +50,6 @@
   },
   "scheme": [
     "uo2"
-  ],
-  "plugins": [
-    "expo-splash-screen",
-    "expo-font",
-    "expo-router",
-    "expo-web-browser",
-    "react-native-maps",
-    {
-      "skipNativeConfiguration": true
-    }
   ],
   "newArchEnabled": true,
   "extra": {

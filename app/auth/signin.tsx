@@ -11,11 +11,11 @@ import {
   Alert,
 } from "react-native";
 import { router } from "expo-router";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth } from "../../src/contexts/AuthContext";
 import { StatusBar } from "expo-status-bar";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { FormInput, FormButton, signInSchema } from "../components/forms";
+import { FormInput, FormButton, signInSchema } from "../../src/components/forms";
 
 // Define the form data type to match the schema
 type SignInFormData = {

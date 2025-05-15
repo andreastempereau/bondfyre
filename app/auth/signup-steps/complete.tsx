@@ -11,10 +11,10 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-import { StepContainer } from "../../components/forms/StepContainer";
-import { useAuth } from "../../contexts/AuthContext";
-import { useSignup } from "../../contexts/SignupContext";
-import { apiService } from "../../services/apiService";
+import { StepContainer } from "../../../src/components/forms/StepContainer";
+import { useAuth } from "../../../src/contexts/AuthContext";
+import { useSignup } from "../../../src/contexts/SignupContext";
+import { apiService } from "../../../src/services/apiService";
 
 const { width } = Dimensions.get("window");
 

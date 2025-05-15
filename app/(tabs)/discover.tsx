@@ -20,14 +20,14 @@ import {
   SwipeCard,
   ActionButtons,
   EmptyState,
-} from "../components/discover";
+} from "../../src/components/discover";
 import { StatusBar } from "expo-status-bar";
-import { apiService } from "../services/apiService";
+import { apiService } from "../../src/services/apiService";
 import { FontAwesome } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import { useAuth } from "../contexts/AuthContext";
-import { UnauthenticatedView } from "../components/profile/UnauthenticatedView";
+import { useAuth } from "../../src/contexts/AuthContext";
+import { UnauthenticatedView } from "../../src/components/profile/UnauthenticatedView";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;

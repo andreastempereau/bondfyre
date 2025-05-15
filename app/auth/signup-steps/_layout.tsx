@@ -1,6 +1,6 @@
 import React from "react";
 import { Stack } from "expo-router";
-import { SignupProvider } from "../../contexts/SignupContext";
+import { SignupProvider } from "../../../src/contexts/SignupContext";
 
 export default function SignupLayout() {
   return (

@@ -17,9 +17,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { StepContainer } from "../../components/forms/StepContainer";
-import { InviteCodeCard, JoinGroupModal } from "../../components/groups";
-import { useSignup } from "../../contexts/SignupContext";
+import { StepContainer } from "../../../src/components/forms/StepContainer";
+import { InviteCodeCard, JoinGroupModal } from "../../../src/components/groups";
+import { useSignup } from "../../../src/contexts/SignupContext";
 
 // Friend data structure
 interface Friend {

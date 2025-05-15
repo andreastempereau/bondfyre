@@ -3,8 +3,8 @@ import { useEffect } from "react";
 import { View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
-import { AuthProvider } from "./contexts/AuthContext";
-import NetworkNotification from "./components/ui/NetworkNotification";
+import { AuthProvider } from "./../src/contexts/AuthContext";
+import NetworkNotification from "./../src/components/ui/NetworkNotification";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function RootLayout() {

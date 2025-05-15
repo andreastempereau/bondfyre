@@ -13,8 +13,8 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { router } from "expo-router";
-import { useSignup } from "../../contexts/SignupContext";
-import { StepContainer } from "../../components/forms/StepContainer";
+import { useSignup } from "../../../src/contexts/SignupContext";
+import { StepContainer } from "../../../src/components/forms/StepContainer";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { MotiView } from "moti";
 
