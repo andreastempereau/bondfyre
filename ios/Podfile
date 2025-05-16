@@ -50,7 +50,7 @@ target '2UO' do
       :ccache_enabled => podfile_properties['apple.ccacheEnabled'] == 'true',
     )
 
-    # This is necessary for Xcode 14, because it signs resource bundles by default
+    # This is necessary for Xcode 14+, because it signs resource bundles by default
     # when building for devices.
     installer.target_installation_results.pod_target_installation_results
       .each do |pod_name, target_installation_result|
@@ -72,6 +72,11 @@ target '2UO' do
           # Ensure C++17 compatibility
           config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
         end
+      end
+      
+      # Fix deployment target warnings
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
       end
     end
   end
