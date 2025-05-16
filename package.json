@@ -9,18 +9,19 @@
     "web": "expo start --web",
     "dev:backend": "cd backend && bun run dev",
     "prebuild": "expo prebuild",
+    "setup": "expo install",
     "build": "eas build --profile preview",
     "build:ios": "eas build --platform ios --profile preview",
     "build:android": "eas build --platform android --profile preview"
   },
   "dependencies": {
-    "@faker-js/faker": "^9.7.0",
+    "@faker-js/faker": "^9.8.0",
     "@hookform/resolvers": "^5.0.1",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/slider": "4.5.6",
-    "@react-navigation/native": "^7.0.14",
+    "@react-navigation/native": "^7.1.6",
     "@supabase/supabase-js": "^2.49.4",
-    "axios": "^1.8.4",
+    "axios": "^1.9.0",
     "base64-arraybuffer": "^1.0.2",
     "expo": "^53.0.9",
     "expo-blur": "~14.1.4",
@@ -41,7 +42,7 @@
     "lottie-react-native": "7.2.2",
     "moti": "^0.30.0",
     "react": "19.0.0",
-    "react-hook-form": "^7.56.1",
+    "react-hook-form": "^7.56.3",
     "react-native": "0.79.2",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-reanimated": "~3.17.4",
@@ -54,7 +55,7 @@
     "yup": "^1.6.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.10",
+    "@babel/core": "^7.27.1",
     "@types/react": "~19.0.10",
     "typescript": "^5.8.3"
   },
