@@ -15,12 +15,12 @@ const getApiUrl = () => {
     if (Platform.OS === "android") {
       return "http://10.0.2.2:8080/api"; // Android emulator needs this special IP
     } else {
-      return "http://localhost:8080/api"; // iOS simulator and web can use localhost
+      return "https://d3db-2a09-bac5-3ad9-1a8c-00-2a5-6.ngrok-free.app/api"; // iOS simulator and web can use localhost
     }
   }
 
-  // For production builds, use your actual API domain
-  return "https://api.yourdomain.com/api";
+  // For production builds, use the production API URL
+  return "https://api.bondfyre.com/api";
 };
 
 // Export configuration object

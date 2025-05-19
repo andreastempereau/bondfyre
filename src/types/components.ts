@@ -101,7 +101,7 @@ export interface SwipeCardProps {
   cardStyle: any;
 }
 
-export interface GroupProfileInfoProps {
+export interface MatchProfileInfoProps {
   profile: GroupProfile;
 }
 

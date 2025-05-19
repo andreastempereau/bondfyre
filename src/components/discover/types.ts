@@ -3,7 +3,7 @@ import {
   GroupProfile,
   SwipeCardProps,
   ActionButtonsProps,
-  GroupProfileInfoProps,
+  MatchProfileInfoProps,
   EmptyStateProps,
 } from "../../types/components";
 
@@ -13,7 +13,7 @@ export type {
   GroupProfile,
   SwipeCardProps,
   ActionButtonsProps,
-  GroupProfileInfoProps,
+  MatchProfileInfoProps,
   EmptyStateProps,
 };
 

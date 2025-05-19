@@ -1,5 +1,11 @@
 import express from "express";
-import { login, register, resetPassword, refreshToken } from "../controllers";
+import {
+  login,
+  register,
+  resetPassword,
+  refreshToken,
+  checkUsername,
+} from "../controllers";
 
 const router = express.Router();
 
@@ -16,5 +22,6 @@ router.post("/register", register);
 router.post("/login", login);
 router.post("/reset-password", resetPassword);
 router.post("/token/refresh", refreshToken);
+router.get("/check-username", checkUsername);
 
 export default router;

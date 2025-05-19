@@ -67,10 +67,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    // Listen for network errors
+    const networkErrorListener = EventRegister.addEventListener(
+      API_EVENTS.NETWORK_ERROR,
+      (data: { message: string }) => {
+        console.log("Network error detected:", data.message);
+        Alert.alert(
+          "Connection Error",
+          data.message || "Please check your internet connection"
+        );
+      }
+    );
+
+    // Listen for server errors
+    const serverErrorListener = EventRegister.addEventListener(
+      API_EVENTS.SERVER_ERROR,
+      (data: { message: string }) => {
+        console.log("Server error detected:", data.message);
+        Alert.alert("Server Error", data.message || "Please try again later");
+      }
+    );
+
     return () => {
-      // Clean up listener when component unmounts
+      // Clean up listeners when component unmounts
       if (typeof authErrorListener === "string") {
         EventRegister.removeEventListener(authErrorListener);
+      }
+      if (typeof networkErrorListener === "string") {
+        EventRegister.removeEventListener(networkErrorListener);
+      }
+      if (typeof serverErrorListener === "string") {
+        EventRegister.removeEventListener(serverErrorListener);
       }
     };
   }, []);
@@ -174,7 +201,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await saveAuthData(response.token, normalizedUser);
     } catch (error: any) {
       console.error("Registration error:", error);
-      throw new Error(error.message || "Failed to sign up");
+
+      // Provide more specific error messages based on the error type
+      if (error.message === "Network Error") {
+        console.error("Network Error details:", error);
+        throw new Error(
+          "Connection failed. Please check your internet connection and try again."
+        );
+      } else if (error.response?.status === 400) {
+        const message =
+          error.response.data?.message || "Invalid registration data";
+        throw new Error(message);
+      } else if (
+        error.response?.status === 409 ||
+        (error.response?.data?.message &&
+          error.response.data.message.includes("already exists"))
+      ) {
+        throw new Error("This email or username is already registered");
+      } else if (error.response?.status && error.response.status >= 500) {
+        throw new Error("Server error. Please try again later.");
+      } else {
+        throw new Error(error.message || "Failed to sign up");
+      }
     }
   };
 

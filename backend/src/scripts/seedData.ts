@@ -107,14 +107,14 @@ const createUsers = async (count: number) => {
 };
 
 // Create friend requests and add friends
-const createFriendships = async (users: mongoose.Document[]) => {
+const createFriendships = async (users: any[]) => {
   console.log("Creating friendships...");
   const friendRequests = [];
 
   // Each user sends 1-3 friend requests
   for (const user of users) {
     const otherUsers = users.filter(
-      (u) => u._id.toString() !== user._id.toString()
+      (u) => u._id && user._id && u._id.toString() !== user._id.toString()
     );
     const requestCount = getRandomInt(1, 3);
 
@@ -163,7 +163,7 @@ const createFriendships = async (users: mongoose.Document[]) => {
 };
 
 // Create groups
-const createGroups = async (users: mongoose.Document[]) => {
+const createGroups = async (users: any[]) => {
   console.log("Creating groups...");
   const groups = [];
 
@@ -185,7 +185,7 @@ const createGroups = async (users: mongoose.Document[]) => {
     );
 
     // Always include the creator
-    memberIds.push(user._id);
+    memberIds.push(user._id as any);
 
     const interestOptions = [
       "clubbing",
@@ -219,7 +219,7 @@ const createGroups = async (users: mongoose.Document[]) => {
 };
 
 // Create swipes
-const createSwipes = async (users: mongoose.Document[]) => {
+const createSwipes = async (users: any[]) => {
   console.log("Creating swipes...");
   const swipes = [];
 
@@ -256,10 +256,7 @@ const createSwipes = async (users: mongoose.Document[]) => {
 };
 
 // Create matches
-const createMatches = async (
-  users: mongoose.Document[],
-  groups: mongoose.Document[]
-) => {
+const createMatches = async (users: any[], groups: any[]) => {
   console.log("Creating matches...");
   const matches = [];
 
@@ -321,27 +318,33 @@ const createMatches = async (
       let group2 = groups[getRandomInt(0, groups.length - 1)];
 
       // Ensure different groups
-      while (group1._id.toString() === group2._id.toString()) {
+      while (
+        group1._id &&
+        group2._id &&
+        group1._id.toString() === group2._id.toString()
+      ) {
         group2 = groups[getRandomInt(0, groups.length - 1)];
       }
 
       try {
         // Get a member from each group
-        const user1 = await User.findById(group1.members[0]);
-        const user2 = await User.findById(group2.members[0]);
+        if (group1.members && group2.members) {
+          const user1 = await User.findById(group1.members[0]);
+          const user2 = await User.findById(group2.members[0]);
 
-        if (user1 && user2) {
-          const match = new Match({
-            user: user1._id,
-            matchedUser: user2._id,
-            userGroup: group1._id,
-            matchedGroup: group2._id,
-            matchType: "group-to-group",
-            status: "accepted",
-          });
+          if (user1 && user2) {
+            const match = new Match({
+              user: user1._id,
+              matchedUser: user2._id,
+              userGroup: group1._id,
+              matchedGroup: group2._id,
+              matchType: "group-to-group",
+              status: "accepted",
+            });
 
-          await match.save();
-          matches.push(match);
+            await match.save();
+            matches.push(match);
+          }
         }
       } catch (error) {
         console.log("Error creating group match:", error);
@@ -354,10 +357,7 @@ const createMatches = async (
 };
 
 // Create group chats
-const createGroupChats = async (
-  matches: mongoose.Document[],
-  users: mongoose.Document[]
-) => {
+const createGroupChats = async (matches: any[], users: any[]) => {
   console.log("Creating group chats...");
   const groupChats = [];
 
@@ -376,8 +376,8 @@ const createGroupChats = async (
 
       // Combine participants from both groups
       const participants = [
-        ...userGroup.members.map((id) => id.toString()),
-        ...matchedGroup.members.map((id) => id.toString()),
+        ...userGroup.members.map((id: any) => id.toString()),
+        ...matchedGroup.members.map((id: any) => id.toString()),
       ];
 
       // Remove duplicates
@@ -426,97 +426,114 @@ const createGroupChats = async (
 
 // Create messages
 const createMessages = async (
-  users: mongoose.Document[],
-  matches: mongoose.Document[],
-  groupChats: mongoose.Document[]
+  users: any[],
+  matches: any[],
+  groupChats: any[]
 ) => {
   console.log("Creating messages...");
   const messages = [];
 
-  // Create messages for direct matches
-  const userMatches = matches.filter(
-    (match) => match.matchType === "user-to-user"
-  );
+  // Make sure we have matches and groupChats
+  if (!matches || matches.length === 0) {
+    console.log("No matches found, skipping direct messages");
+  } else {
+    // Create messages for direct matches
+    const userMatches = matches.filter(
+      (match) => match.matchType === "user-to-user"
+    );
 
-  for (const match of userMatches) {
-    const messageCount = getRandomInt(2, 10);
-    const user1 = match.user;
-    const user2 = match.matchedUser;
+    for (const match of userMatches) {
+      const messageCount = getRandomInt(2, 10);
+      const user1 = match.user;
+      const user2 = match.matchedUser;
 
-    for (let i = 0; i < messageCount; i++) {
-      const sender = i % 2 === 0 ? user1 : user2;
-      const receiver = i % 2 === 0 ? user2 : user1;
+      for (let i = 0; i < messageCount; i++) {
+        const sender = i % 2 === 0 ? user1 : user2;
+        const receiver = i % 2 === 0 ? user2 : user1;
 
-      try {
-        const message = new Message({
-          sender,
-          receiver,
-          content: faker.lorem.sentence(),
-          match: match._id,
-          read: Math.random() < 0.8, // 80% of messages are read
-          readBy: [sender], // Sender always reads their own message
-        });
+        try {
+          const message = new Message({
+            sender,
+            receiver,
+            content: faker.lorem.sentence(),
+            match: match._id,
+            read: Math.random() < 0.8, // 80% of messages are read
+            readBy: [sender], // Sender always reads their own message
+          });
 
-        // Receiver has 70% chance of having read the message
-        if (Math.random() < 0.7) {
-          message.readBy.push(receiver);
+          // Receiver has 70% chance of having read the message
+          if (Math.random() < 0.7) {
+            message.readBy.push(receiver);
+          }
+
+          await message.save();
+          messages.push(message);
+        } catch (error) {
+          console.log("Error creating match message:", error);
         }
-
-        await message.save();
-        messages.push(message);
-      } catch (error) {
-        console.log("Error creating match message:", error);
       }
     }
   }
 
   // Create messages for group chats
-  for (const groupChat of groupChats) {
-    const messageCount = getRandomInt(5, 20);
-    const participants = groupChat.participants;
+  if (!groupChats || groupChats.length === 0) {
+    console.log("No group chats found, skipping group chat messages");
+  } else {
+    for (const groupChat of groupChats) {
+      const messageCount = getRandomInt(5, 20);
+      const participants = groupChat.participants;
 
-    let latestMessageId = null;
-
-    for (let i = 0; i < messageCount; i++) {
-      // Random sender from participants
-      const senderIndex = getRandomInt(0, participants.length - 1);
-      const sender = participants[senderIndex];
-
-      // Random subset of participants have read the message
-      const readByCount = getRandomInt(1, participants.length);
-      const readBy = [sender]; // Sender always reads their own message
-
-      // Add random readers
-      const otherParticipants = participants.filter(
-        (p) => p.toString() !== sender.toString()
-      );
-      const randomReaders = getRandomSubset(otherParticipants, readByCount - 1);
-      readBy.push(...randomReaders);
-
-      try {
-        const message = new Message({
-          sender,
-          content: faker.lorem.sentence(),
-          groupChat: groupChat._id,
-          read: readBy.length === participants.length, // Marked as read if everyone has read it
-          readBy,
-        });
-
-        const savedMessage = await message.save();
-        messages.push(savedMessage);
-
-        // Keep track of the latest message
-        latestMessageId = savedMessage._id;
-      } catch (error) {
-        console.log("Error creating group chat message:", error);
+      if (!participants || participants.length === 0) {
+        console.log("No participants in group chat, skipping messages");
+        continue;
       }
-    }
 
-    // Update the group chat with the latest message
-    if (latestMessageId) {
-      await GroupChat.findByIdAndUpdate(groupChat._id, {
-        latestMessage: latestMessageId,
-      });
+      let latestMessageId = null;
+
+      for (let i = 0; i < messageCount; i++) {
+        // Random sender from participants
+        const senderIndex = getRandomInt(0, participants.length - 1);
+        const sender = participants[senderIndex];
+
+        // Random subset of participants have read the message
+        const readByCount = getRandomInt(1, participants.length);
+        const readBy = [sender]; // Sender always reads their own message
+
+        // Add random readers
+        const otherParticipants = participants.filter(
+          (p: any) => p.toString() !== sender.toString()
+        );
+        const randomReaders = getRandomSubset(
+          otherParticipants,
+          readByCount - 1
+        );
+        readBy.push(...randomReaders);
+
+        try {
+          const message = new Message({
+            sender,
+            content: faker.lorem.sentence(),
+            groupChat: groupChat._id,
+            read: readBy.length === participants.length, // Marked as read if everyone has read it
+            readBy,
+          });
+
+          const savedMessage = await message.save();
+          messages.push(savedMessage);
+
+          // Keep track of the latest message
+          latestMessageId = savedMessage._id;
+        } catch (error) {
+          console.log("Error creating group chat message:", error);
+        }
+      }
+
+      // Update the group chat with the latest message
+      if (latestMessageId) {
+        await GroupChat.findByIdAndUpdate(groupChat._id, {
+          latestMessage: latestMessageId,
+        });
+      }
     }
   }
 
@@ -530,12 +547,21 @@ const seedData = async () => {
     await clearCollections();
 
     const users = await createUsers(30);
-    await createFriendships(users);
-    const groups = await createGroups(users);
-    await createSwipes(users);
-    const matches = await createMatches(users, groups);
-    const groupChats = await createGroupChats(matches, users);
-    await createMessages(users, matches, groupChats);
+    if (users && users.length > 0) {
+      await createFriendships(users);
+      const groups = await createGroups(users);
+      await createSwipes(users);
+
+      if (groups && groups.length > 0) {
+        const matches = await createMatches(users, groups);
+        if (matches && matches.length > 0) {
+          const groupChats = await createGroupChats(matches, users);
+          if (groupChats && groupChats.length > 0) {
+            await createMessages(users, matches, groupChats);
+          }
+        }
+      }
+    }
 
     console.log("✅ Data seeding completed successfully!");
 

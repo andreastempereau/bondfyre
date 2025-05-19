@@ -31,10 +31,23 @@ const userSchema = new Schema<IUser>(
     interests: { type: [String], default: [] },
     photos: { type: [String], default: [] },
     friends: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }],
-    doubleDateFriends: [{ type: Schema.Types.ObjectId, ref: "User", default: [], maxlength: 3 }],
+    doubleDateFriends: [
+      { type: Schema.Types.ObjectId, ref: "User", default: [], maxlength: 3 },
+    ],
     friendRequests: [{ type: Schema.Types.ObjectId, ref: "User", default: [] }],
     phoneNumber: { type: String },
-    username: { type: String, sparse: true, unique: true },
+    username: {
+      type: String,
+      sparse: true,
+      unique: true,
+      validate: {
+        validator: function (v: string) {
+          // If username is provided, it shouldn't be empty
+          return v === undefined || v === null || v.trim().length > 0;
+        },
+        message: "Username cannot be an empty string",
+      },
+    },
   },
   {
     timestamps: true,

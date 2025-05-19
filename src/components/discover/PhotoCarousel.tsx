@@ -12,11 +12,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { FontAwesome } from "@expo/vector-icons";
 import { MotiView } from "moti";
 
-interface PhotoCarouselProps {
+// Define props type
+type PhotoCarouselProps = {
   photos: string[];
   currentPhotoIndex: number;
   onPhotoPress: () => void;
-}
+};
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const CARD_WIDTH = SCREEN_WIDTH - 40;
@@ -28,16 +29,17 @@ const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8Z3JvdXAlMjBvZiUyMGZyaWVuZHN8ZW58MHx8MHx8&auto=format&fit=crop&w=800&q=60",
 ];
 
-const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
-  photos,
-  currentPhotoIndex,
-  onPhotoPress,
-}) => {
+// Use the simplest function form possible
+function PhotoCarousel(props: PhotoCarouselProps) {
+  const photos = props.photos;
+  const currentPhotoIndex = props.currentPhotoIndex;
+  const onPhotoPress = props.onPhotoPress;
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [imageAttempts, setImageAttempts] = useState(0);
   const [networkError, setNetworkError] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<number | null>(null);
 
   // Cache of failed image URLs to avoid repeated failed attempts
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
@@ -218,7 +220,7 @@ const PhotoCarousel: React.FC<PhotoCarouselProps> = ({
       )}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   imageContainer: {

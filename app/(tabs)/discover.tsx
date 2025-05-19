@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   View,
   StyleSheet,
@@ -27,7 +33,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "../../src/contexts/AuthContext";
-import { UnauthenticatedView } from "../../src/components/profile/UnauthenticatedView";
+import { AuthScreen } from "../../app/auth";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
@@ -60,7 +66,9 @@ export default function DiscoverScreen() {
         }
         setError(null);
         const response = await apiService.get(
-          `/discovery/users?limit=10&offset=${refresh ? 0 : offset}&excludeSwiped=true`
+          `/discovery/users?limit=10&offset=${
+            refresh ? 0 : offset
+          }&excludeSwiped=true`
         );
         const data = (response as any).users;
         const hasMoreData = (response as any).hasMore;
@@ -126,67 +134,76 @@ export default function DiscoverScreen() {
   }
 
   if (!user) {
-    return <UnauthenticatedView />;
+    return <AuthScreen />;
   }
 
-  // Gesture handlers
-  const onGestureEvent = Animated.event(
-    [{ nativeEvent: { translationX: position.x, translationY: position.y } }],
-    { useNativeDriver: false }
+  // Moving handleSwipe before onHandlerStateChange to fix the reference issue
+  const handleSwipe = useCallback(
+    (direction: SwipeDirection) => {
+      const x = direction === "right" ? SCREEN_WIDTH : -SCREEN_WIDTH;
+      Animated.timing(position, {
+        toValue: { x, y: 0 },
+        duration: 250,
+        useNativeDriver: false,
+      }).start(async () => {
+        position.setValue({ x: 0, y: 0 });
+        const currentProfile = profiles[currentIndex];
+        if (currentProfile) {
+          try {
+            const response = await apiService.post("/swipes", {
+              userId: currentProfile.id,
+              direction,
+            });
+            if ((response as any).isMatch) {
+              await Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success
+              );
+              setMatchDetails((response as any).matchDetails);
+              setMatchModal(true);
+            }
+          } catch (err) {
+            console.error("Failed to record swipe:", err);
+          }
+        }
+        setCurrentIndex((prev) => {
+          if (prev === profiles.length - 3 && hasMore) {
+            fetchDiscoveryData(false);
+          }
+          return prev + 1;
+        });
+        setCurrentPhotoIndex(0);
+      });
+    },
+    [currentIndex, fetchDiscoveryData, hasMore, position, profiles]
   );
 
-  const onHandlerStateChange = (event: any) => {
-    if (event.nativeEvent.oldState === State.ACTIVE) {
-      const { translationX } = event.nativeEvent;
-      if (Math.abs(translationX) > SWIPE_THRESHOLD) {
-        const direction: SwipeDirection = translationX > 0 ? "right" : "left";
-        handleSwipe(direction);
-      } else {
-        Animated.spring(position, {
-          toValue: { x: 0, y: 0 },
-          useNativeDriver: false,
-        }).start();
-      }
-    }
-  };
+  // Gesture handlers - memoizing these to prevent re-creation on every render
+  const onGestureEvent = useMemo(() => {
+    return Animated.event(
+      [{ nativeEvent: { translationX: position.x, translationY: position.y } }],
+      { useNativeDriver: false }
+    );
+  }, [position.x, position.y]);
 
-  const handleSwipe = (direction: SwipeDirection) => {
-    const x = direction === "right" ? SCREEN_WIDTH : -SCREEN_WIDTH;
-    Animated.timing(position, {
-      toValue: { x, y: 0 },
-      duration: 250,
-      useNativeDriver: false,
-    }).start(async () => {
-      position.setValue({ x: 0, y: 0 });
-      const currentProfile = profiles[currentIndex];
-      if (currentProfile) {
-        try {
-          const response = await apiService.post("/swipes", {
-            userId: currentProfile.id,
-            direction,
-          });
-          if ((response as any).isMatch) {
-            await Haptics.notificationAsync(
-              Haptics.NotificationFeedbackType.Success
-            );
-            setMatchDetails((response as any).matchDetails);
-            setMatchModal(true);
-          }
-        } catch (err) {
-          console.error("Failed to record swipe:", err);
+  const onHandlerStateChange = useCallback(
+    (event: any) => {
+      if (event.nativeEvent.oldState === State.ACTIVE) {
+        const { translationX } = event.nativeEvent;
+        if (Math.abs(translationX) > SWIPE_THRESHOLD) {
+          const direction: SwipeDirection = translationX > 0 ? "right" : "left";
+          handleSwipe(direction);
+        } else {
+          Animated.spring(position, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false,
+          }).start();
         }
       }
-      setCurrentIndex((prev) => {
-        if (prev === profiles.length - 3 && hasMore) {
-          fetchDiscoveryData(false);
-        }
-        return prev + 1;
-      });
-      setCurrentPhotoIndex(0);
-    });
-  };
+    },
+    [handleSwipe, position]
+  );
 
-  const getCardStyle = () => {
+  const getCardStyle = useCallback(() => {
     const rotate = position.x.interpolate({
       inputRange: [-SCREEN_WIDTH * 1.5, 0, SCREEN_WIDTH * 1.5],
       outputRange: ["-30deg", "0deg", "30deg"],
@@ -195,75 +212,96 @@ export default function DiscoverScreen() {
       ...position.getLayout(),
       transform: [{ rotate }],
     };
-  };
+  }, [position]);
 
-  const handlePhotoPress = () => {
+  const handlePhotoPress = useCallback(() => {
     const profile = profiles[currentIndex];
     if (profile) {
       setCurrentPhotoIndex((prev) =>
         prev === profile.photos.length - 1 ? 0 : prev + 1
       );
     }
-  };
+  }, [currentIndex, profiles]);
 
-  const onRefresh = () => fetchDiscoveryData(true);
+  const onRefresh = useCallback(
+    () => fetchDiscoveryData(true),
+    [fetchDiscoveryData]
+  );
 
-  const handleMessageMatch = () => {
+  const handleMessageMatch = useCallback(() => {
     setMatchModal(false);
     if (matchDetails?._id) {
       router.push(`/messages/${matchDetails._id}`);
     }
-  };
+  }, [matchDetails, router]);
 
-  const handleCloseMatchModal = () => setMatchModal(false);
+  const handleCloseMatchModal = useCallback(() => setMatchModal(false), []);
 
-  // Render content based on state
-  const renderContent = () => {
+  // Memoized loading state
+  const loadingUI = useMemo(
+    () => (
+      <View style={[styles.container, styles.centeredContent]}>
+        <ActivityIndicator size="large" color="#FF6B6B" />
+        <Text style={styles.loadingText}>Finding matches for you...</Text>
+      </View>
+    ),
+    []
+  );
+
+  // Memoized error state
+  const errorUI = useMemo(
+    () => (
+      <View style={[styles.container, styles.centeredContent]}>
+        <ScrollView
+          contentContainerStyle={styles.errorContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => fetchDiscoveryData(true)}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    ),
+    [error, fetchDiscoveryData, onRefresh, refreshing]
+  );
+
+  // Memoized empty state
+  const emptyStateUI = useMemo(
+    () => (
+      <View style={[styles.container, styles.centeredContent]}>
+        <ScrollView
+          contentContainerStyle={styles.centeredContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <EmptyState
+            title="No more profiles"
+            subtitle="You've seen all available profiles. Check back later for more!"
+            icon="search"
+          />
+        </ScrollView>
+      </View>
+    ),
+    [onRefresh, refreshing]
+  );
+
+  // Render content based on state with memoized components
+  const renderContent = useCallback(() => {
     if (loading && profiles.length === 0) {
-      return (
-        <View style={[styles.container, styles.centeredContent]}>
-          <ActivityIndicator size="large" color="#FF6B6B" />
-          <Text style={styles.loadingText}>Finding matches for you...</Text>
-        </View>
-      );
+      return loadingUI;
     }
     if (error && profiles.length === 0) {
-      return (
-        <View style={[styles.container, styles.centeredContent]}>
-          <ScrollView
-            contentContainerStyle={styles.errorContainer}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-          >
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={() => fetchDiscoveryData(true)}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      );
+      return errorUI;
     }
     if (currentIndex >= profiles.length) {
-      return (
-        <View style={[styles.container, styles.centeredContent]}>
-          <ScrollView
-            contentContainerStyle={styles.centeredContent}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-          >
-            <EmptyState
-              title="No more profiles"
-              subtitle="You've seen all available profiles. Check back later for more!"
-              icon="search"
-            />
-          </ScrollView>
-        </View>
-      );
+      return emptyStateUI;
     }
     return (
       <View style={styles.container}>
@@ -280,7 +318,72 @@ export default function DiscoverScreen() {
         <ActionButtons onSwipe={handleSwipe} />
       </View>
     );
-  };
+  }, [
+    loading,
+    profiles,
+    error,
+    currentIndex,
+    currentPhotoIndex,
+    loadingUI,
+    errorUI,
+    emptyStateUI,
+    handlePhotoPress,
+    onGestureEvent,
+    onHandlerStateChange,
+    getCardStyle,
+    handleSwipe,
+  ]);
+
+  // Memoized match modal content
+  const matchModalContent = useMemo(
+    () => (
+      <View style={styles.matchModalContainer}>
+        <View style={styles.matchHeader}>
+          <Text style={styles.matchTitle}>It's a Match!</Text>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={handleCloseMatchModal}
+          >
+            <FontAwesome name="times" size={22} color="#666" />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.matchDescription}>
+          You and {matchDetails?.name || "someone"} liked each other!
+        </Text>
+        <View style={styles.matchImagesContainer}>
+          <Image
+            source={{
+              uri: user?.photos?.[0] || "https://via.placeholder.com/150",
+            }}
+            style={styles.matchImage}
+          />
+          <View style={styles.matchIcon}>
+            <FontAwesome name="heart" size={22} color="#FF6B6B" />
+          </View>
+          <Image
+            source={{
+              uri:
+                matchDetails?.photos?.[0] || "https://via.placeholder.com/150",
+            }}
+            style={styles.matchImage}
+          />
+        </View>
+        <TouchableOpacity
+          style={styles.messageButton}
+          onPress={handleMessageMatch}
+        >
+          <Text style={styles.messageButtonText}>Send a Message</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.continueButton}
+          onPress={handleCloseMatchModal}
+        >
+          <Text style={styles.continueButtonText}>Keep Swiping</Text>
+        </TouchableOpacity>
+      </View>
+    ),
+    [handleCloseMatchModal, handleMessageMatch, matchDetails, user]
+  );
 
   return (
     <View style={styles.outerContainer}>
@@ -292,53 +395,7 @@ export default function DiscoverScreen() {
         visible={matchModal}
         onRequestClose={handleCloseMatchModal}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.matchModalContainer}>
-            <View style={styles.matchHeader}>
-              <Text style={styles.matchTitle}>It's a Match!</Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={handleCloseMatchModal}
-              >
-                <FontAwesome name="times" size={22} color="#666" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.matchDescription}>
-              You and {matchDetails?.name || "someone"} liked each other!
-            </Text>
-            <View style={styles.matchImagesContainer}>
-              <Image
-                source={{
-                  uri: user?.photos?.[0] || "https://via.placeholder.com/150",
-                }}
-                style={styles.matchImage}
-              />
-              <View style={styles.matchIcon}>
-                <FontAwesome name="heart" size={22} color="#FF6B6B" />
-              </View>
-              <Image
-                source={{
-                  uri:
-                    matchDetails?.photos?.[0] ||
-                    "https://via.placeholder.com/150",
-                }}
-                style={styles.matchImage}
-              />
-            </View>
-            <TouchableOpacity
-              style={styles.messageButton}
-              onPress={handleMessageMatch}
-            >
-              <Text style={styles.messageButtonText}>Send a Message</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.continueButton}
-              onPress={handleCloseMatchModal}
-            >
-              <Text style={styles.continueButtonText}>Keep Swiping</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <View style={styles.modalOverlay}>{matchModalContent}</View>
       </Modal>
     </View>
   );
@@ -374,7 +431,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20,
   },
-  errorText: { fontSize: 16, color: "#666", textAlign: "center", marginBottom: 20 },
+  errorText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
   retryButton: { backgroundColor: "#FF6B6B", padding: 10, borderRadius: 20 },
   retryButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   modalOverlay: {
@@ -395,15 +457,73 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  matchHeader: { width: "100%", flexDirection: "row", justifyContent: "center", alignItems: "center", marginBottom: 15, position: "relative" },
+  matchHeader: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 15,
+    position: "relative",
+  },
   closeButton: { position: "absolute", right: 0, top: 0, padding: 5 },
   matchTitle: { fontSize: 22, fontWeight: "bold", color: "#333" },
-  matchDescription: { fontSize: 16, color: "#666", textAlign: "center", marginBottom: 20 },
-  matchImagesContainer: { flexDirection: "row", alignItems: "center", justifyContent: "center", marginBottom: 20 },
-  matchImage: { width: 100, height: 100, borderRadius: 50, marginHorizontal: 5 },
-  matchIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", marginHorizontal: -5, zIndex: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 3 },
-  messageButton: { backgroundColor: "#FF6B6B", width: "100%", paddingVertical: 12, borderRadius: 25, marginBottom: 10 },
-  messageButtonText: { color: "#fff", fontSize: 16, fontWeight: "600", textAlign: "center" },
-  continueButton: { width: "100%", paddingVertical: 12, borderRadius: 25, borderWidth: 1, borderColor: "#ddd" },
-  continueButtonText: { color: "#666", fontSize: 16, fontWeight: "500", textAlign: "center" },
+  matchDescription: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  matchImagesContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  matchImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginHorizontal: 5,
+  },
+  matchIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: -5,
+    zIndex: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  messageButton: {
+    backgroundColor: "#FF6B6B",
+    width: "100%",
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginBottom: 10,
+  },
+  messageButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  continueButton: {
+    width: "100%",
+    paddingVertical: 12,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  continueButtonText: {
+    color: "#666",
+    fontSize: 16,
+    fontWeight: "500",
+    textAlign: "center",
+  },
 });

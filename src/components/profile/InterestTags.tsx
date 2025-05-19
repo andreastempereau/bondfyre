@@ -1,15 +1,18 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-interface InterestTagsProps {
+// Define props type
+type InterestTagsProps = {
   interests: string[];
   highlightInterests?: string[]; // New prop to highlight matching interests
-}
+};
 
-const InterestTags: React.FC<InterestTagsProps> = ({
-  interests,
-  highlightInterests = [],
-}) => {
+// Use the simplest function form possible
+function InterestTags(props: InterestTagsProps) {
+  // Access props directly
+  const interests = props.interests;
+  const highlightInterests = props.highlightInterests || [];
+  
   return (
     <View style={styles.interestsContainer}>
       {interests.map((interest, index) => {
@@ -35,7 +38,7 @@ const InterestTags: React.FC<InterestTagsProps> = ({
       })}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   interestsContainer: {
@@ -71,5 +74,5 @@ const styles = StyleSheet.create({
   },
 });
 
-// Adding default export to prevent Expo Router from treating this as a route
+// Export the component
 export default InterestTags;

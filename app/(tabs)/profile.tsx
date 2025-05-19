@@ -22,7 +22,7 @@ import { useThemeColor } from "../../src/hooks/useThemeColor";
 import {
   ProfileHeader,
   ProfileEditForm,
-  UnauthenticatedView,
+  AuthScreen,
 } from "../../src/components/profile";
 import { ProfileEditValues } from "../../src/components/profile/ProfileEditForm";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -53,7 +53,7 @@ export default function ProfileScreen() {
 
   // If user is not authenticated, show sign in/sign up page
   if (!user) {
-    return <UnauthenticatedView />;
+    return <AuthScreen />;
   }
 
   // Create default values for the form using both possible structures
@@ -82,7 +82,7 @@ export default function ProfileScreen() {
 
       // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: "images",
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,

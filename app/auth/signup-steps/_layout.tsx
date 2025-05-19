@@ -16,8 +16,10 @@ export default function SignupLayout() {
         <Stack.Screen name="password" />
         <Stack.Screen name="age" />
         <Stack.Screen name="gender" />
+        <Stack.Screen name="bio" />
         <Stack.Screen name="interests" />
         <Stack.Screen name="photos" />
+        <Stack.Screen name="username" />
         <Stack.Screen name="friends" />
         <Stack.Screen name="complete" />
       </Stack>

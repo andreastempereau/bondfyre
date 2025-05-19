@@ -39,6 +39,7 @@ export type SignupStepName =
   | "bio"
   | "interests"
   | "photos"
+  | "username"
   | "friends"
   | "complete";
 
@@ -114,6 +115,14 @@ export const SIGNUP_STEPS: SignupStep[] = [
   },
   {
     id: 9,
+    name: "username",
+    path: "/auth/signup-steps/username",
+    title: "Choose a username",
+    subtitle: "This will be your unique identifier on Bondfyre",
+    isOptional: false,
+  },
+  {
+    id: 10,
     name: "friends",
     path: "/auth/signup-steps/friends",
     title: "Add your friends",
@@ -121,7 +130,7 @@ export const SIGNUP_STEPS: SignupStep[] = [
     isOptional: true,
   },
   {
-    id: 10,
+    id: 11,
     name: "complete",
     path: "/auth/signup-steps/complete",
     title: "You're all set!",
@@ -235,10 +244,13 @@ export function SignupProvider({ children }: { children: React.ReactNode }) {
         username: finalData.username,
       };
 
+      console.log("Attempting to register with email:", finalData.email);
       const response = await apiService.post<RegisterResponse>(
         "/auth/register",
         apiData
       );
+
+      console.log("Registration successful");
 
       // If friends were selected, add them after registration
       if (finalData.friends && finalData.friends.length > 0) {
@@ -256,9 +268,36 @@ export function SignupProvider({ children }: { children: React.ReactNode }) {
       }
 
       return response.data;
-    } catch (error) {
-      console.error("Error during signup:", error);
-      throw error;
+    } catch (error: any) {
+      // Provide detailed error information
+      const isAxiosError = error.isAxiosError || false;
+      const status = error.response?.status;
+      const responseData = error.response?.data;
+      const errorMessage =
+        responseData?.message || error.message || "Unknown error occurred";
+
+      console.error("Signup error:", {
+        message: errorMessage,
+        isAxiosError,
+        status,
+        responseData,
+        originalError: error,
+      });
+
+      if (error.message === "Network Error") {
+        console.error("Network Error details:", error);
+        throw new Error(
+          "Connection failed. Please check your internet connection and try again."
+        );
+      } else if (status === 400) {
+        throw new Error(errorMessage || "Invalid registration data");
+      } else if (status === 409) {
+        throw new Error(errorMessage || "User already exists");
+      } else if (status && status >= 500) {
+        throw new Error("Server error. Please try again later.");
+      } else {
+        throw new Error(errorMessage || "Failed to sign up");
+      }
     }
   };
 

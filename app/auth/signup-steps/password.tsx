@@ -230,6 +230,10 @@ export default function PasswordStep() {
                       outputRange: [1, 0],
                     }),
                     position: "absolute",
+                    width: 24,
+                    height: 24,
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
                   <MaterialCommunityIcons name="eye" size={22} color="#666" />
@@ -237,6 +241,10 @@ export default function PasswordStep() {
                 <Animated.View
                   style={{
                     opacity: visibilityIconAnim,
+                    width: 24,
+                    height: 24,
+                    alignItems: "center",
+                    justifyContent: "center",
                   }}
                 >
                   <MaterialCommunityIcons
@@ -477,8 +485,8 @@ const styles = StyleSheet.create({
     padding: 8,
     justifyContent: "center",
     alignItems: "center",
-    height: 30,
-    width: 30,
+    height: 40,
+    width: 40,
   },
   strengthContainer: {
     marginTop: 15,

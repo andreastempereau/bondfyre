@@ -110,6 +110,7 @@ const startServer = async () => {
 
     app.listen(PORT, () => {
       // Server started
+      console.log(`Server is running on port ${PORT} in ${NODE_ENV} mode`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);

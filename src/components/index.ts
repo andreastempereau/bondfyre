@@ -18,12 +18,13 @@ export { default as Collapsible } from "./layout/Collapsible";
 export * from "./forms";
 
 // Authentication Components
-export * from "./profile/UnauthenticatedView";
+// Authentication is now handled by the AuthScreen from app/auth
 
 // Discovery Components
-export * from "./discover/SwipeCard";
-export * from "./discover/ActionButtons";
-export * from "./discover/EmptyState";
+export * from "./discover";
+
+// Profile Components
+export * from "./profile";
 
 // Note: Modal components are imported directly in files where needed to avoid require cycles
 // export { default as GroupModal } from "./modals/GroupModal";

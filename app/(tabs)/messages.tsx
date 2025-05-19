@@ -14,7 +14,7 @@ import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { useThemeColor } from "../../src/hooks/useThemeColor";
 import { apiService } from "../../src/services/apiService";
 import { useAuth } from "../../src/contexts/AuthContext";
-import { UnauthenticatedView } from "../../src/components/profile/UnauthenticatedView";
+import { AuthScreen } from "../../app/auth";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 
@@ -73,9 +73,9 @@ export default function MessagesScreen() {
     );
   }
 
-  // If user is not authenticated, show the unauthenticated view
+  // If user is not authenticated, show the auth screen
   if (!user) {
-    return <UnauthenticatedView />;
+    return <AuthScreen />;
   }
 
   // Fetch chats from API

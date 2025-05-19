@@ -9,6 +9,19 @@ export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, name, profile, phoneNumber, username } = req.body;
 
+    // Validate required fields
+    if (!email || !password || !name) {
+      res.status(400).json({
+        message: "Missing required fields",
+        details: {
+          email: !email ? "Email is required" : null,
+          password: !password ? "Password is required" : null,
+          name: !name ? "Name is required" : null,
+        },
+      });
+      return;
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -18,6 +31,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     // Check if username is provided and already exists
     if (username) {
+      // Don't allow empty strings as usernames
+      if (username.trim() === "") {
+        res.status(400).json({ message: "Username cannot be empty" });
+        return;
+      }
+
       const usernameExists = await User.findOne({ username });
       if (usernameExists) {
         res.status(400).json({ message: "Username already taken" });
@@ -36,7 +55,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       interests: profile?.interests || [],
       photos: profile?.photos || [],
       phoneNumber,
-      username,
+      ...(username && username.trim() !== "" ? { username } : {}),
     });
 
     await user.save();
@@ -56,11 +75,21 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         interests: user.interests,
         photos: user.photos,
         phoneNumber: user.phoneNumber,
-        username: user.username,
+        ...(user.username ? { username: user.username } : {}),
       },
     });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    console.error("Registration error:", error);
+
+    // Provide more detailed error message
+    const errorMsg = error.message || "An error occurred during registration";
+    const errorCode = error.code || "unknown_error";
+
+    res.status(500).json({
+      message: errorMsg,
+      code: errorCode,
+      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+    });
   }
 };
 
@@ -154,5 +183,54 @@ export const resetPassword = async (
     res.json({ message: "Password reset successfully" });
   } catch (error: any) {
     res.status(500).json({ message: error.message });
+  }
+};
+
+// Check if a username is available
+export const checkUsername = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { username } = req.query;
+
+    // Validate the username
+    if (!username || typeof username !== "string") {
+      res.status(400).json({
+        message: "Username is required",
+        available: false,
+      });
+      return;
+    }
+
+    // Don't allow empty usernames
+    if (username.trim() === "") {
+      res.status(400).json({
+        message: "Username cannot be empty",
+        available: false,
+      });
+      return;
+    }
+
+    // Check if username is already taken
+    const existingUser = await User.findOne({ username });
+
+    if (existingUser) {
+      res.json({
+        message: "Username is already taken",
+        available: false,
+      });
+    } else {
+      res.json({
+        message: "Username is available",
+        available: true,
+      });
+    }
+  } catch (error: any) {
+    console.error("Username check error:", error);
+    res.status(500).json({
+      message: error.message || "Error checking username availability",
+      available: false,
+    });
   }
 };

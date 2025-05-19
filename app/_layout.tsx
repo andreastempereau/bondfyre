@@ -1,11 +1,9 @@
-import { Stack } from "expo-router";
-import { useEffect } from "react";
-import { View } from "react-native";
-import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
-import { AuthProvider } from "./../src/contexts/AuthContext";
-import NetworkNotification from "./../src/components/ui/NetworkNotification";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import NetworkNotification from "./../src/components/ui/NetworkNotification";
+import { AuthProvider } from "./../src/contexts/AuthContext";
 
 export default function RootLayout() {
   // Load the Space Mono font

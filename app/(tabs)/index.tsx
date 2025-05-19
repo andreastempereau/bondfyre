@@ -1,7 +1,7 @@
 import { Redirect } from "expo-router";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
-import { UnauthenticatedView } from "../../src/components/profile/UnauthenticatedView";
+import { AuthScreen } from "../../app/auth";
 
 export default function HomeScreen() {
   const { user, loading } = useAuth();
@@ -18,7 +18,7 @@ export default function HomeScreen() {
 
   // If user is not authenticated, show the unauthenticated view
   if (!user) {
-    return <UnauthenticatedView />;
+    return <AuthScreen />;
   }
 
   // If user is authenticated, redirect to discover tab

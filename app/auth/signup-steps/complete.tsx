@@ -32,7 +32,7 @@ export default function CompleteStep() {
   const buttonScale = useSharedValue(1);
 
   useEffect(() => {
-    setCurrentStep(9); // Update to match step ID in SIGNUP_STEPS
+    setCurrentStep(11); // Update to match step ID in SIGNUP_STEPS
 
     // Initial animation
     cardOpacity.value = withTiming(1, { duration: 500 });
@@ -158,6 +158,9 @@ export default function CompleteStep() {
 
             <Text style={styles.name}>{signupData.name}</Text>
             <Text style={styles.email}>{signupData.email}</Text>
+            {signupData.username && (
+              <Text style={styles.username}>@{signupData.username}</Text>
+            )}
 
             <View style={styles.detailsContainer}>
               <View style={styles.detailItem}>
@@ -308,6 +311,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     marginTop: 4,
+  },
+  username: {
+    fontSize: 14,
+    color: "#666",
+    fontStyle: "italic",
+    marginTop: 2,
   },
   detailsContainer: {
     flexDirection: "row",

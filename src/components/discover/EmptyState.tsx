@@ -1,20 +1,22 @@
-import React from "react";
+import React, { memo } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 
-interface EmptyStateProps {
+// Define props type
+type EmptyStateProps = {
   title?: string;
   subtitle?: string;
   icon?: keyof typeof FontAwesome.glyphMap;
   errorMessage?: string;
-}
+};
 
-const EmptyState: React.FC<EmptyStateProps> = ({
-  title = "No more people to show!",
-  subtitle = "Check back later for new matches!",
-  icon = "compass",
-  errorMessage,
-}) => {
+// Use memo to prevent unnecessary re-renders
+const EmptyState = memo(function EmptyState(props: EmptyStateProps) {
+  const title = props.title || "No more people to show!";
+  const subtitle = props.subtitle || "Check back later for new matches!";
+  const icon = props.icon || "compass";
+  const errorMessage = props.errorMessage;
+
   return (
     <View style={styles.container}>
       <FontAwesome name={icon} size={64} color="#999" />
@@ -22,7 +24,10 @@ const EmptyState: React.FC<EmptyStateProps> = ({
       <Text style={styles.subtitle}>{subtitle}</Text>
     </View>
   );
-};
+});
+
+// Add displayName for better debugging
+EmptyState.displayName = "EmptyState";
 
 const styles = StyleSheet.create({
   container: {

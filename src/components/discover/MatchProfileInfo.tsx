@@ -11,14 +11,18 @@ import { GroupProfile } from "./types";
 import InterestTags from "../profile/InterestTags";
 import { FontAwesome } from "@expo/vector-icons";
 
-interface MatchProfileInfoProps {
+// Define props type
+type ProfileProps = {
   profile: GroupProfile;
-}
+};
 
-const FALLBACK_IMAGE =
+// Define a fallback URL outside the component
+const FALLBACK_URL =
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHBvcnRyYWl0fGVufDB8fDB8fHww&auto=format&fit=crop&w=900&q=60";
 
-const MatchProfileInfo: React.FC<MatchProfileInfoProps> = ({ profile }) => {
+// Using the simplest form of function declaration possible
+const MatchProfileInfo: React.FC<ProfileProps> = ({ profile }) => {
+  console.log("MatchProfileInfo", profile);
   // Calculate the number of matching interests to highlight
   const hasMatchingInterests =
     profile.matchingInterests && profile.matchingInterests.length > 0;
@@ -33,10 +37,12 @@ const MatchProfileInfo: React.FC<MatchProfileInfoProps> = ({ profile }) => {
   // State to track error state of member images
   const [errorImages, setErrorImages] = useState<Record<string, boolean>>({});
 
+  // Handle image load
   const handleImageLoad = (memberId: string) => {
     setLoadingImages((prev) => ({ ...prev, [memberId]: false }));
   };
 
+  // Handle image error
   const handleImageError = (memberId: string) => {
     setLoadingImages((prev) => ({ ...prev, [memberId]: false }));
     setErrorImages((prev) => ({ ...prev, [memberId]: true }));
@@ -109,7 +115,7 @@ const MatchProfileInfo: React.FC<MatchProfileInfoProps> = ({ profile }) => {
               <View style={styles.memberAvatarContainer}>
                 <Image
                   source={{
-                    uri: errorImages[member.id] ? FALLBACK_IMAGE : member.image,
+                    uri: errorImages[member.id] ? FALLBACK_URL : member.image,
                   }}
                   style={styles.memberAvatar}
                   onLoad={() => handleImageLoad(member.id)}

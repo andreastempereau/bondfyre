@@ -1,40 +1,33 @@
-import React, { useCallback, useState, useEffect } from "react";
+import { FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
+import * as Contacts from "expo-contacts";
+import React, { useCallback, useState } from "react";
 import {
-  Alert,
-  StyleSheet,
-  TouchableOpacity,
-  View,
   ActivityIndicator,
+  Alert,
   FlatList,
-  TextInput,
   Image,
-  Switch,
   Modal,
   Share,
-  Platform,
+  StyleSheet,
+  Switch,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Contacts from "expo-contacts";
-import {
-  Ionicons,
-  MaterialCommunityIcons,
-  FontAwesome,
-  MaterialIcons,
-} from "@expo/vector-icons";
 
 // Import internal components
+import { AuthScreen } from "../../app/auth";
+import { InviteCodeCard, JoinGroupModal } from "../../src/components/groups";
 import ThemedView from "../../src/components/layout/ThemedView";
 import Text from "../../src/components/ui/Text";
-import ErrorDisplay from "../../src/components/friends/ErrorDisplay"; // Import the new ErrorDisplay component
-import { UnauthenticatedView } from "../../src/components/profile/UnauthenticatedView";
-import { InviteCodeCard, JoinGroupModal } from "../../src/components/groups";
 
 // Import contexts and services
+import { Config } from "../../src/config/environment";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { useThemeColor } from "../../src/hooks/useThemeColor";
 import { apiService } from "../../src/services/apiService";
-import { Config } from "../../src/config/environment";
 
 // Friend interface definition
 interface Friend {
@@ -48,7 +41,9 @@ interface Friend {
 }
 
 // Component for displaying empty state when no friends are available
-const FriendsEmptyState = ({ onAddFriend }: { onAddFriend: () => void }) => {
+const FriendsEmptyState: React.FC<{ onAddFriend: () => void }> = ({
+  onAddFriend,
+}) => {
   const primaryColor = useThemeColor({}, "primary");
   const textColor = useThemeColor({}, "text");
   const mutedTextColor = useThemeColor({}, "mutedText");
@@ -65,7 +60,8 @@ const FriendsEmptyState = ({ onAddFriend }: { onAddFriend: () => void }) => {
       </Text>
       <Text style={[styles.emptyDescription, { color: mutedTextColor }]}>
         Add friends to increase your chances of finding great matches!
-      </Text>{" "}
+      </Text>
+      <View style={{ height: 20 }}></View>
       <TouchableOpacity
         style={[styles.addFriendButton, { backgroundColor: primaryColor }]}
         onPress={onAddFriend}
@@ -536,9 +532,9 @@ const FriendsScreen = () => {
     );
   }
 
-  // If user is not authenticated, show the unauthenticated view
+  // If user is not authenticated, show the auth screen
   if (!user) {
-    return <UnauthenticatedView />;
+    return <AuthScreen />;
   }
 
   // Handle search for new friends

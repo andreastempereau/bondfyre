@@ -19,7 +19,8 @@ import { useThemeColor } from "../../src/hooks/useThemeColor";
 
 const { width, height } = Dimensions.get("window");
 
-export default function AuthScreen() {
+// Export both as default and named export so it can be imported in different ways
+export function AuthScreen() {
   const router = useRouter();
   const primaryColor = useThemeColor({}, "primary");
 

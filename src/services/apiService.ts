@@ -28,7 +28,7 @@ class ApiService {
   constructor() {
     this.api = axios.create({
       baseURL: Config.API_URL,
-      timeout: 10000,
+      timeout: Config.DEFAULT_TIMEOUT,
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -57,12 +57,40 @@ class ApiService {
       (error: AxiosError) => {
         const responseData = error.response?.data as Record<string, any>;
 
+        // Log detailed error information
+        console.error("API Error:", {
+          status: error.response?.status,
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.response?.data,
+          message: error.message,
+          isNetworkError: error.message === "Network Error",
+        });
+
         // Handle authentication errors
         if (error.response?.status === 401 || error.response?.status === 403) {
           // Emit an authentication error event that will be caught by AuthContext
           EventRegister.emit(API_EVENTS.AUTH_ERROR, {
             message: responseData?.message || "Authentication failed",
             status: error.response?.status,
+          });
+        }
+
+        // Handle network errors
+        if (!error.response && error.message === "Network Error") {
+          EventRegister.emit(API_EVENTS.NETWORK_ERROR, {
+            message:
+              "Network connection failed. Please check your internet connection and try again.",
+            originalError: error.message,
+          });
+        }
+
+        // Handle server errors
+        if (error.response?.status && error.response.status >= 500) {
+          EventRegister.emit(API_EVENTS.SERVER_ERROR, {
+            message: "Server error occurred. Please try again later.",
+            status: error.response.status,
+            data: responseData,
           });
         }
 

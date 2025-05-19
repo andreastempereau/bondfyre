@@ -1,4 +1,4 @@
-import React from "react";
+import React, { memo } from "react";
 import { Animated, Dimensions, StyleSheet, View } from "react-native";
 import { PanGestureHandler } from "react-native-gesture-handler";
 import { GroupProfile } from "./types";
@@ -8,44 +8,40 @@ import MatchProfileInfo from "./MatchProfileInfo";
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SCREEN_HEIGHT = Dimensions.get("window").height;
 
-interface SwipeCardProps {
+// Define props type
+type SwipeCardProps = {
   profile: GroupProfile;
   currentPhotoIndex: number;
   onPhotoPress: () => void;
   onGestureEvent: any;
   onHandlerStateChange: any;
   cardStyle: any;
-}
+};
 
-const SwipeCard: React.FC<SwipeCardProps> = ({
-  profile,
-  currentPhotoIndex,
-  onPhotoPress,
-  onGestureEvent,
-  onHandlerStateChange,
-  cardStyle,
-}) => {
+// Use memo to prevent unnecessary re-renders
+const SwipeCard = memo(function SwipeCard(props: SwipeCardProps) {
+  // Access props directly without destructuring
   return (
     <PanGestureHandler
-      onGestureEvent={onGestureEvent}
-      onHandlerStateChange={onHandlerStateChange}
+      onGestureEvent={props.onGestureEvent}
+      onHandlerStateChange={props.onHandlerStateChange}
       activeOffsetX={[-10, 10]}
     >
-      <Animated.View style={[styles.card, cardStyle]}>
+      <Animated.View style={[styles.card, props.cardStyle]}>
         <View style={styles.photoContainer}>
           <PhotoCarousel
-            photos={profile.photos}
-            currentPhotoIndex={currentPhotoIndex}
-            onPhotoPress={onPhotoPress}
+            photos={props.profile.photos}
+            currentPhotoIndex={props.currentPhotoIndex}
+            onPhotoPress={props.onPhotoPress}
           />
         </View>
         <View style={styles.infoContainer}>
-          <MatchProfileInfo profile={profile} />
+          <MatchProfileInfo profile={props.profile} />
         </View>
       </Animated.View>
     </PanGestureHandler>
   );
-};
+});
 
 const styles = StyleSheet.create({
   card: {
@@ -71,5 +67,8 @@ const styles = StyleSheet.create({
     flex: 0.4, // Increased from 0.35 to 0.4 to show more content including interests
   },
 });
+
+// Add a display name for debugging
+SwipeCard.displayName = "SwipeCard";
 
 export default SwipeCard;
