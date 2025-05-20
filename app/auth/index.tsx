@@ -8,21 +8,18 @@ import {
   Animated,
   Dimensions,
   Easing,
-  Image,
   ImageBackground,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useThemeColor } from "../../src/hooks/useThemeColor";
 
 const { width, height } = Dimensions.get("window");
 
 // Export both as default and named export so it can be imported in different ways
 export function AuthScreen() {
   const router = useRouter();
-  const primaryColor = useThemeColor({}, "primary");
 
   // Animation references
   const logoAnim = useRef(new Animated.Value(0)).current;
