@@ -17,8 +17,8 @@ import {
 
 const { width, height } = Dimensions.get("window");
 
-// Export both as default and named export so it can be imported in different ways
-export function AuthScreen() {
+// Define component as function declaration for clarity
+export default function AuthScreen() {
   const router = useRouter();
 
   // Animation references

@@ -1,7 +1,7 @@
 import { Redirect } from "expo-router";
 import { useAuth } from "../../src/contexts/AuthContext";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
-import { AuthScreen } from "../../app/auth";
+import AuthScreen from "../../app/auth";
 
 export default function HomeScreen() {
   const { user, loading } = useAuth();

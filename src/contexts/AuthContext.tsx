@@ -105,11 +105,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Add effect to navigate based on auth state
   useEffect(() => {
     if (!loading) {
-      if (token && user) {
-        // User is authenticated, navigate to main app if not already there
-        router.replace("/(tabs)");
-      } else {
-        // User is not authenticated
+      try {
+        if (token && user) {
+          // User is authenticated, navigate to main app if not already there
+          router.replace("/(tabs)");
+        } else {
+          // User is not authenticated
+          router.replace("/auth");
+        }
+      } catch (error) {
+        console.error("Navigation error:", error);
+        // Fallback to authentication screen if navigation fails
         router.replace("/auth");
       }
     }
@@ -125,9 +131,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
 
       if (storedToken && storedUser) {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-        console.log("Auth state loaded from storage:", !!storedToken);
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setToken(storedToken);
+          setUser(parsedUser);
+          console.log("Auth state loaded from storage:", !!storedToken);
+        } catch (parseError) {
+          console.error("Error parsing user data:", parseError);
+          // Clear invalid data
+          await AsyncStorage.removeItem(Config.STORAGE_KEYS.AUTH_TOKEN);
+          await AsyncStorage.removeItem(Config.STORAGE_KEYS.USER_DATA);
+        }
       }
     } catch (error) {
       console.error("Error loading stored data:", error);
