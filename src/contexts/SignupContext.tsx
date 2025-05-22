@@ -192,23 +192,46 @@ export function SignupProvider({ children }: { children: React.ReactNode }) {
 
   // Get step info by name
   const getStepByName = useCallback((name: SignupStepName): SignupStep => {
-    const step = SIGNUP_STEPS.find((s) => s.name === name);
-    if (!step) {
-      throw new Error(`Step with name ${name} not found`);
+    try {
+      const step = SIGNUP_STEPS.find((s) => s.name === name);
+      if (!step) {
+        console.error(`Step with name ${name} not found`);
+        // Return a default step instead of throwing an error
+        return SIGNUP_STEPS[0]; // Return the first step as fallback
+      }
+      return step;
+    } catch (error) {
+      console.error(`Error in getStepByName for ${name}:`, error);
+      return SIGNUP_STEPS[0]; // Return the first step as fallback
     }
-    return step;
   }, []);
 
   // Get the next step path
   const getNextStep = useCallback(() => {
-    const currentIndex = SIGNUP_STEPS.findIndex(
-      (step) => step.id === currentStep
-    );
-    if (currentIndex >= 0 && currentIndex < SIGNUP_STEPS.length - 1) {
-      return SIGNUP_STEPS[currentIndex + 1].path;
+    try {
+      // Make sure currentStep is valid
+      if (typeof currentStep !== "number" || isNaN(currentStep)) {
+        console.warn("Invalid currentStep in getNextStep:", currentStep);
+        // Return a safe default step path
+        return "/auth/signup-steps/name";
+      }
+
+      const currentIndex = SIGNUP_STEPS.findIndex(
+        (step) => step.id === currentStep
+      );
+
+      // If we found the current step and it's not the last step
+      if (currentIndex >= 0 && currentIndex < SIGNUP_STEPS.length - 1) {
+        const nextStep = SIGNUP_STEPS[currentIndex + 1];
+        return nextStep.path;
+      }
+
+      // If it's the last step or something went wrong, return to the complete step
+      return "/auth/signup-steps/complete";
+    } catch (error) {
+      console.error("Error in getNextStep:", error);
+      return "/auth/signup-steps/name"; // Safe default
     }
-    // If it's the last step or something went wrong, return to the complete step
-    return SIGNUP_STEPS[SIGNUP_STEPS.length - 1].path;
   }, [currentStep]);
 
   // Get the previous step path

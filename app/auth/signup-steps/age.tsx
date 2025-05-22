@@ -17,6 +17,10 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as yup from "yup";
 import { MotiView } from "moti";
 import Slider from "@react-native-community/slider";
+import {
+  safeAnimationConfig,
+  safeOutputRange,
+} from "../../../src/utils/animationUtils";
 
 // Validation schema for just the age field
 const ageSchema = yup.object({
@@ -54,27 +58,36 @@ export default function AgeStep() {
   }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
-    Animated.spring(iconAnim, {
-      toValue: isFocused ? 1 : 0,
-      friction: 6,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(
+      iconAnim,
+      safeAnimationConfig({
+        toValue: isFocused ? 1 : 0,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ).start();
 
-    Animated.spring(inputScaleAnim, {
-      toValue: isFocused ? 1.02 : 1,
-      friction: 7,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(
+      inputScaleAnim,
+      safeAnimationConfig({
+        toValue: isFocused ? 1.02 : 1,
+        friction: 7,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ).start();
   }, [isFocused]);
 
   useEffect(() => {
-    Animated.timing(errorAnim, {
-      toValue: error ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(
+      errorAnim,
+      safeAnimationConfig({
+        toValue: error ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ).start();
   }, [error]);
 
   // Convert string age to number for slider
@@ -102,17 +115,23 @@ export default function AgeStep() {
 
       // Create a bounce effect before navigation
       Animated.sequence([
-        Animated.timing(inputScaleAnim, {
-          toValue: 0.98,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.spring(inputScaleAnim, {
-          toValue: 1,
-          friction: 3,
-          tension: 40,
-          useNativeDriver: true,
-        }),
+        Animated.timing(
+          inputScaleAnim,
+          safeAnimationConfig({
+            toValue: 0.98,
+            duration: 100,
+            useNativeDriver: true,
+          })
+        ),
+        Animated.spring(
+          inputScaleAnim,
+          safeAnimationConfig({
+            toValue: 1,
+            friction: 3,
+            tension: 40,
+            useNativeDriver: true,
+          })
+        ),
       ]).start(() => {
         router.push(getNextStep());
       });
@@ -153,13 +172,13 @@ export default function AgeStep() {
                       {
                         scale: iconAnim.interpolate({
                           inputRange: [0, 1],
-                          outputRange: [1, 1.2],
+                          outputRange: safeOutputRange([1, 1.2]),
                         }),
                       },
                       {
                         rotate: iconAnim.interpolate({
                           inputRange: [0, 1],
-                          outputRange: ["0deg", "10deg"],
+                          outputRange: ["0deg", "10deg"], // String rotation values don't need the safeOutputRange
                         }),
                       },
                     ],
@@ -228,7 +247,7 @@ export default function AgeStep() {
                 {
                   translateY: errorAnim.interpolate({
                     inputRange: [0, 1],
-                    outputRange: [-10, 0],
+                    outputRange: safeOutputRange([-10, 0]),
                   }),
                 },
               ],

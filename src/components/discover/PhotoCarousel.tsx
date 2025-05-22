@@ -34,7 +34,7 @@ function PhotoCarousel(props: PhotoCarouselProps) {
   const photos = props.photos;
   const currentPhotoIndex = props.currentPhotoIndex;
   const onPhotoPress = props.onPhotoPress;
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [imageAttempts, setImageAttempts] = useState(0);
@@ -76,7 +76,6 @@ function PhotoCarousel(props: PhotoCarouselProps) {
 
     // Set new timeout - shorter timeout for better UX
     timeoutRef.current = setTimeout(() => {
-      console.log("Image loading timed out");
       setLoading(false);
       setError(true);
 
@@ -96,8 +95,6 @@ function PhotoCarousel(props: PhotoCarouselProps) {
 
   // Handle image load error with retry logic
   const handleImageError = () => {
-    console.log("Image load error");
-
     // Only retry up to 1 time
     if (imageAttempts < 1) {
       setImageAttempts((prev) => prev + 1);
@@ -109,7 +106,6 @@ function PhotoCarousel(props: PhotoCarouselProps) {
 
       // Try again after a short delay
       timeoutRef.current = setTimeout(() => {
-        console.log(`Retrying image load, attempt ${imageAttempts + 1}`);
         setLoading(true);
         setError(false);
       }, 800);
@@ -145,14 +141,12 @@ function PhotoCarousel(props: PhotoCarouselProps) {
           source={imageSrc}
           style={styles.image}
           onLoadStart={() => {
-            console.log("Image load started");
             // Only set loading if not already in error state
             if (!error) {
               setLoading(true);
             }
           }}
           onLoad={() => {
-            console.log("Image loaded successfully");
             setLoading(false);
             setError(false);
 
@@ -165,7 +159,7 @@ function PhotoCarousel(props: PhotoCarouselProps) {
           onError={handleImageError}
         />
 
-        {loading && (
+        {loading ? (
           <MotiView
             style={styles.loadingContainer}
             from={{ opacity: 0 }}
@@ -174,9 +168,9 @@ function PhotoCarousel(props: PhotoCarouselProps) {
           >
             <ActivityIndicator size="large" color="#ffffff" />
           </MotiView>
-        )}
+        ) : null}
 
-        {error && (
+        {error ? (
           <MotiView
             style={styles.errorContainer}
             from={{ opacity: 0, scale: 0.9 }}
@@ -186,7 +180,7 @@ function PhotoCarousel(props: PhotoCarouselProps) {
             <FontAwesome name="image" size={32} color="#ffffff" />
             <Text style={styles.errorText}>Using backup image</Text>
           </MotiView>
-        )}
+        ) : null}
 
         <LinearGradient
           colors={["transparent", "rgba(0,0,0,0.5)"]}
@@ -200,13 +194,13 @@ function PhotoCarousel(props: PhotoCarouselProps) {
             key={index}
             style={[
               styles.photoDot,
-              index === currentPhotoIndex && styles.photoDotActive,
+              index === currentPhotoIndex ? styles.photoDotActive : null,
             ]}
           />
         ))}
       </View>
 
-      {networkError && (
+      {networkError ? (
         <MotiView
           style={styles.networkErrorContainer}
           from={{ opacity: 0, translateY: -20 }}
@@ -217,7 +211,7 @@ function PhotoCarousel(props: PhotoCarouselProps) {
           <FontAwesome name="exclamation-triangle" size={16} color="white" />
           <Text style={styles.networkErrorText}>Network connection issue</Text>
         </MotiView>
-      )}
+      ) : null}
     </View>
   );
 }

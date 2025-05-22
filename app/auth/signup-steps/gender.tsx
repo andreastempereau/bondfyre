@@ -17,7 +17,16 @@ import Animated, {
   withSpring,
   withTiming,
   interpolateColor,
+  runOnJS,
 } from "react-native-reanimated";
+import {
+  safeAnimationConfig,
+  safeOutputRange,
+} from "../../../src/utils/animationUtils";
+import {
+  safeSpringConfig,
+  safeTimingConfig,
+} from "../../../src/utils/reanimatedUtils";
 
 // Define gender options
 const genderOptions = [
@@ -141,13 +150,22 @@ const GenderOption = ({
   // Animate when selection changes
   useEffect(() => {
     if (isSelected) {
-      scale.value = withSpring(1.05, { mass: 0.5, damping: 10 });
-      backgroundColor.value = withTiming(1, { duration: 300 });
-      borderColor.value = withTiming(1, { duration: 300 });
+      scale.value = withSpring(
+        1.05,
+        safeSpringConfig({ mass: 0.5, damping: 10 })
+      );
+      backgroundColor.value = withTiming(
+        1,
+        safeTimingConfig({ duration: 300 })
+      );
+      borderColor.value = withTiming(1, safeTimingConfig({ duration: 300 }));
     } else {
-      scale.value = withSpring(1);
-      backgroundColor.value = withTiming(0, { duration: 300 });
-      borderColor.value = withTiming(0, { duration: 300 });
+      scale.value = withSpring(1, safeSpringConfig({}));
+      backgroundColor.value = withTiming(
+        0,
+        safeTimingConfig({ duration: 300 })
+      );
+      borderColor.value = withTiming(0, safeTimingConfig({ duration: 300 }));
     }
   }, [isSelected]);
 

@@ -33,7 +33,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useAuth } from "../../src/contexts/AuthContext";
-import { AuthScreen } from "../../app/auth";
+import AuthScreen from "../../app/auth";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;

@@ -14,6 +14,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import {
+  safeAnimationConfig,
+  safeOutputRange,
+} from "../../src/utils/animationUtils";
 
 const { width, height } = Dimensions.get("window");
 
@@ -30,41 +34,56 @@ export default function AuthScreen() {
   useEffect(() => {
     // Sequence animation for a smooth intro
     Animated.stagger(200, [
-      Animated.spring(logoAnim, {
-        toValue: 1,
-        friction: 6,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      Animated.spring(textAnim, {
-        toValue: 1,
-        friction: 7,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-      Animated.spring(buttonsAnim, {
-        toValue: 1,
-        friction: 7,
-        tension: 40,
-        useNativeDriver: true,
-      }),
+      Animated.spring(
+        logoAnim,
+        safeAnimationConfig({
+          toValue: 1,
+          friction: 6,
+          tension: 40,
+          useNativeDriver: true,
+        })
+      ),
+      Animated.spring(
+        textAnim,
+        safeAnimationConfig({
+          toValue: 1,
+          friction: 7,
+          tension: 40,
+          useNativeDriver: true,
+        })
+      ),
+      Animated.spring(
+        buttonsAnim,
+        safeAnimationConfig({
+          toValue: 1,
+          friction: 7,
+          tension: 40,
+          useNativeDriver: true,
+        })
+      ),
     ]).start();
 
     // Create subtle pulsating effect for logo
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.1,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
+        Animated.timing(
+          pulseAnim,
+          safeAnimationConfig({
+            toValue: 1.1,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          })
+        ),
+        Animated.timing(
+          pulseAnim,
+          safeAnimationConfig({
+            toValue: 1,
+            duration: 1500,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          })
+        ),
       ])
     ).start();
   }, []);
@@ -72,17 +91,23 @@ export default function AuthScreen() {
   const handleButtonPress = (path: string) => {
     // Create a bounce effect before navigation
     Animated.sequence([
-      Animated.timing(buttonsAnim, {
-        toValue: 0.95,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(buttonsAnim, {
-        toValue: 1,
-        friction: 3,
-        tension: 40,
-        useNativeDriver: true,
-      }),
+      Animated.timing(
+        buttonsAnim,
+        safeAnimationConfig({
+          toValue: 0.95,
+          duration: 100,
+          useNativeDriver: true,
+        })
+      ),
+      Animated.spring(
+        buttonsAnim,
+        safeAnimationConfig({
+          toValue: 1,
+          friction: 3,
+          tension: 40,
+          useNativeDriver: true,
+        })
+      ),
     ]).start(() => {
       router.push(path);
     });
@@ -112,7 +137,7 @@ export default function AuthScreen() {
                     {
                       translateY: logoAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [50, 0],
+                        outputRange: safeOutputRange([50, 0]),
                       }),
                     },
                   ],
@@ -155,7 +180,7 @@ export default function AuthScreen() {
                     {
                       translateY: textAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [30, 0],
+                        outputRange: safeOutputRange([30, 0]),
                       }),
                     },
                   ],
@@ -178,7 +203,7 @@ export default function AuthScreen() {
                     {
                       translateY: buttonsAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [30, 0],
+                        outputRange: safeOutputRange([30, 0]),
                       }),
                     },
                     {

@@ -91,8 +91,26 @@ export default function PhotosStep() {
   };
 
   const handleNext = () => {
-    // Always allow continuing to the next step
-    router.push(getNextStep());
+    try {
+      // Make sure the correct step is set
+      const photosStep = getStepByName("photos");
+      setCurrentStep(photosStep.id);
+
+      // Get the next path
+      const nextPath = getNextStep();
+
+      if (nextPath) {
+        // Always allow continuing to the next step
+        router.push(nextPath);
+      } else {
+        // Fallback to explicit path if getNextStep fails
+        router.push("/auth/signup-steps/username");
+      }
+    } catch (error) {
+      console.error("Error in photos handleNext:", error);
+      // Fallback navigation
+      router.push("/auth/signup-steps/username");
+    }
   };
 
   const renderPhoto = ({ item, index }: { item: string; index: number }) => (

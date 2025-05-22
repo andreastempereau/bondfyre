@@ -16,6 +16,10 @@ import { StepContainer } from "../../../src/components/forms/StepContainer";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as yup from "yup";
 import { MotiView } from "moti";
+import {
+  safeAnimationConfig,
+  safeOutputRange,
+} from "../../../src/utils/animationUtils";
 
 // Validation schema for just the password field
 const passwordSchema = yup.object({
@@ -55,35 +59,47 @@ export default function PasswordStep() {
   }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
-    Animated.spring(iconAnim, {
-      toValue: isFocused ? 1 : 0,
-      friction: 6,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(
+      iconAnim,
+      safeAnimationConfig({
+        toValue: isFocused ? 1 : 0,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ).start();
 
-    Animated.spring(inputScaleAnim, {
-      toValue: isFocused ? 1.02 : 1,
-      friction: 7,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(
+      inputScaleAnim,
+      safeAnimationConfig({
+        toValue: isFocused ? 1.02 : 1,
+        friction: 7,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ).start();
   }, [isFocused]);
 
   useEffect(() => {
-    Animated.timing(errorAnim, {
-      toValue: error ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(
+      errorAnim,
+      safeAnimationConfig({
+        toValue: error ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ).start();
   }, [error]);
 
   useEffect(() => {
-    Animated.timing(visibilityIconAnim, {
-      toValue: isPasswordVisible ? 1 : 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(
+      visibilityIconAnim,
+      safeAnimationConfig({
+        toValue: isPasswordVisible ? 1 : 0,
+        duration: 200,
+        useNativeDriver: true,
+      })
+    ).start();
   }, [isPasswordVisible]);
 
   const togglePasswordVisibility = () => {

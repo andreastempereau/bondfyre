@@ -99,7 +99,12 @@ export default function UsernameStep() {
       }
     } catch (error) {
       console.error("Failed to check username availability:", error);
-      setError("Error checking username. Please try again.");
+      // For development, allow continuing without the API check
+      if (__DEV__) {
+        setError(null);
+      } else {
+        setError("Error checking username. Please try again.");
+      }
     } finally {
       setIsChecking(false);
     }
@@ -138,10 +143,16 @@ export default function UsernameStep() {
       // Validate username
       await usernameSchema.validate({ username });
 
-      // Check availability one last time before proceeding
-      await checkUsernameAvailability(username);
+      // In development mode, we can skip the availability check if the API is offline
+      if (!__DEV__) {
+        // Check availability one last time before proceeding
+        await checkUsernameAvailability(username);
+      }
 
-      if (!error) {
+      // In development, allow proceeding even with errors related to API unavailability
+      const canProceed = __DEV__ || !error;
+
+      if (canProceed) {
         // Save username to signup data
         updateSignupData("username", username);
 

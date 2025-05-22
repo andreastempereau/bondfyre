@@ -22,7 +22,7 @@ const FALLBACK_URL =
 
 // Using the simplest form of function declaration possible
 const MatchProfileInfo: React.FC<ProfileProps> = ({ profile }) => {
-  console.log("MatchProfileInfo", profile);
+  // Remove excessive console log to prevent duplicate logs
   // Calculate the number of matching interests to highlight
   const hasMatchingInterests =
     profile.matchingInterests && profile.matchingInterests.length > 0;
@@ -59,18 +59,18 @@ const MatchProfileInfo: React.FC<ProfileProps> = ({ profile }) => {
         <Text style={styles.groupName}>{profile.name}</Text>
 
         {profile.relevanceScore !== undefined &&
-          profile.relevanceScore !== null && (
-            <View style={styles.scoreContainer}>
-              <Text style={styles.scoreText}>
-                {`${Math.round(Number(profile.relevanceScore))}%`}
-              </Text>
-              <Text style={styles.scoreLabel}>Match</Text>
-            </View>
-          )}
+        profile.relevanceScore !== null ? (
+          <View style={styles.scoreContainer}>
+            <Text style={styles.scoreText}>
+              {`${Math.round(Number(profile.relevanceScore))}%`}
+            </Text>
+            <Text style={styles.scoreLabel}>Match</Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Matching Interests Highlight */}
-      {hasMatchingInterests && (
+      {hasMatchingInterests ? (
         <View style={styles.matchingContainer}>
           <View style={styles.matchingIcon}>
             <FontAwesome name="star" size={14} color="#FFC107" />
@@ -81,10 +81,10 @@ const MatchProfileInfo: React.FC<ProfileProps> = ({ profile }) => {
             } in common`}
           </Text>
         </View>
-      )}
+      ) : null}
 
       {/* Mutual Connections */}
-      {hasMutualConnections && (
+      {hasMutualConnections ? (
         <View style={styles.matchingContainer}>
           <View style={styles.matchingIcon}>
             <FontAwesome name="link" size={14} color="#4A90E2" />
@@ -95,9 +95,9 @@ const MatchProfileInfo: React.FC<ProfileProps> = ({ profile }) => {
             }`}
           </Text>
         </View>
-      )}
+      ) : null}
 
-      {profile.isGroupConnection && (
+      {profile.isGroupConnection ? (
         <View style={styles.matchingContainer}>
           <View style={styles.matchingIcon}>
             <FontAwesome name="users" size={14} color="#4CAF50" />
@@ -106,7 +106,7 @@ const MatchProfileInfo: React.FC<ProfileProps> = ({ profile }) => {
             Connected through mutual matches
           </Text>
         </View>
-      )}
+      ) : null}
 
       <View style={styles.membersContainer}>
         {profile.members.map((member) => (
@@ -121,18 +121,18 @@ const MatchProfileInfo: React.FC<ProfileProps> = ({ profile }) => {
                   onLoad={() => handleImageLoad(member.id)}
                   onError={() => handleImageError(member.id)}
                 />
-                {loadingImages[member.id] && (
+                {loadingImages[member.id] ? (
                   <View style={styles.memberImageLoadingContainer}>
                     <ActivityIndicator size="small" color="#fff" />
                   </View>
-                )}
+                ) : null}
               </View>
               <View style={styles.memberDetails}>
                 <View style={styles.nameAgeContainer}>
                   <Text style={styles.memberName}>{member.name}</Text>
-                  {typeof member.age !== "undefined" && (
+                  {typeof member.age !== "undefined" ? (
                     <Text style={styles.memberAge}> {String(member.age)}</Text>
-                  )}
+                  ) : null}
                 </View>
                 <View style={styles.memberGenderContainer}>
                   <FontAwesome

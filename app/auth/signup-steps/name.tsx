@@ -16,6 +16,10 @@ import { StepContainer } from "../../../src/components/forms/StepContainer";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as yup from "yup";
 import { MotiView } from "moti";
+import {
+  safeAnimationConfig,
+  safeOutputRange,
+} from "../../../src/utils/animationUtils";
 
 // Validation schema for just the name field
 const nameSchema = yup.object({
@@ -49,27 +53,36 @@ export default function NameStep() {
   }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
-    Animated.spring(iconAnim, {
-      toValue: isFocused ? 1 : 0,
-      friction: 6,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(
+      iconAnim,
+      safeAnimationConfig({
+        toValue: isFocused ? 1 : 0,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ).start();
 
-    Animated.spring(inputScaleAnim, {
-      toValue: isFocused ? 1.02 : 1,
-      friction: 7,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(
+      inputScaleAnim,
+      safeAnimationConfig({
+        toValue: isFocused ? 1.02 : 1,
+        friction: 7,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ).start();
   }, [isFocused]);
 
   useEffect(() => {
-    Animated.timing(errorAnim, {
-      toValue: error ? 1 : 0,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(
+      errorAnim,
+      safeAnimationConfig({
+        toValue: error ? 1 : 0,
+        duration: 300,
+        useNativeDriver: true,
+      })
+    ).start();
   }, [error]);
 
   const handleNext = async () => {
@@ -80,17 +93,23 @@ export default function NameStep() {
 
       // Create a bounce effect before navigation
       Animated.sequence([
-        Animated.timing(inputScaleAnim, {
-          toValue: 0.98,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.spring(inputScaleAnim, {
-          toValue: 1,
-          friction: 3,
-          tension: 40,
-          useNativeDriver: true,
-        }),
+        Animated.timing(
+          inputScaleAnim,
+          safeAnimationConfig({
+            toValue: 0.98,
+            duration: 100,
+            useNativeDriver: true,
+          })
+        ),
+        Animated.spring(
+          inputScaleAnim,
+          safeAnimationConfig({
+            toValue: 1,
+            friction: 3,
+            tension: 40,
+            useNativeDriver: true,
+          })
+        ),
       ]).start(() => {
         // Use getNextStep to navigate to the next step - no need to specify current step ID
         router.push(getNextStep());

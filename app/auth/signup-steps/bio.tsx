@@ -14,6 +14,10 @@ import { useSignup } from "../../../src/contexts/SignupContext";
 import { StepContainer } from "../../../src/components/forms/StepContainer";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { MotiView } from "moti";
+import {
+  safeAnimationConfig,
+  safeOutputRange,
+} from "../../../src/utils/animationUtils";
 
 export default function BioStep() {
   const {
@@ -37,19 +41,25 @@ export default function BioStep() {
   }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
-    Animated.spring(iconAnim, {
-      toValue: isFocused ? 1 : 0,
-      friction: 6,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(
+      iconAnim,
+      safeAnimationConfig({
+        toValue: isFocused ? 1 : 0,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ).start();
 
-    Animated.spring(inputScaleAnim, {
-      toValue: isFocused ? 1.02 : 1,
-      friction: 7,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(
+      inputScaleAnim,
+      safeAnimationConfig({
+        toValue: isFocused ? 1.02 : 1,
+        friction: 7,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ).start();
   }, [isFocused]);
 
   const handleNext = async () => {
@@ -58,17 +68,23 @@ export default function BioStep() {
 
     // Create a bounce effect before navigation
     Animated.sequence([
-      Animated.timing(inputScaleAnim, {
-        toValue: 0.98,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(inputScaleAnim, {
-        toValue: 1,
-        friction: 3,
-        tension: 40,
-        useNativeDriver: true,
-      }),
+      Animated.timing(
+        inputScaleAnim,
+        safeAnimationConfig({
+          toValue: 0.98,
+          duration: 100,
+          useNativeDriver: true,
+        })
+      ),
+      Animated.spring(
+        inputScaleAnim,
+        safeAnimationConfig({
+          toValue: 1,
+          friction: 3,
+          tension: 40,
+          useNativeDriver: true,
+        })
+      ),
     ]).start(() => {
       // Use getNextStep to navigate to the next step - no need to specify current step ID
       router.push(getNextStep());

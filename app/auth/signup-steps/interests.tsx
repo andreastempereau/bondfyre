@@ -17,6 +17,10 @@ import { useSignup } from "../../../src/contexts/SignupContext";
 import { StepContainer } from "../../../src/components/forms/StepContainer";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { MotiView } from "moti";
+import {
+  safeAnimationConfig,
+  safeOutputRange,
+} from "../../../src/utils/animationUtils";
 
 // Sample interest suggestions
 const interestSuggestions = [
@@ -62,19 +66,25 @@ export default function InterestsStep() {
   }, [setCurrentStep, getStepByName]);
 
   useEffect(() => {
-    Animated.spring(iconAnim, {
-      toValue: isFocused ? 1 : 0,
-      friction: 6,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(
+      iconAnim,
+      safeAnimationConfig({
+        toValue: isFocused ? 1 : 0,
+        friction: 6,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ).start();
 
-    Animated.spring(inputScaleAnim, {
-      toValue: isFocused ? 1.02 : 1,
-      friction: 7,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(
+      inputScaleAnim,
+      safeAnimationConfig({
+        toValue: isFocused ? 1.02 : 1,
+        friction: 7,
+        tension: 40,
+        useNativeDriver: true,
+      })
+    ).start();
   }, [isFocused]);
 
   const addInterest = (interest: string) => {
@@ -97,25 +107,50 @@ export default function InterestsStep() {
 
   const handleNext = async () => {
     Keyboard.dismiss();
-    updateSignupData("interests", interests);
+    try {
+      // First update the data
+      updateSignupData("interests", interests);
 
-    // Create a bounce effect before navigation
-    Animated.sequence([
-      Animated.timing(inputScaleAnim, {
-        toValue: 0.98,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(inputScaleAnim, {
-        toValue: 1,
-        friction: 3,
-        tension: 40,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Use getNextStep to navigate to the next step - no need to specify current step ID
-      router.push(getNextStep());
-    });
+      // Make sure the correct step is set
+      const interestsStep = getStepByName("interests");
+      setCurrentStep(interestsStep.id);
+
+      // Get the next path before animation
+      const nextPath = getNextStep();
+
+      // Create a bounce effect before navigation
+      Animated.sequence([
+        Animated.timing(inputScaleAnim, {
+          toValue: 0.98,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(inputScaleAnim, {
+          toValue: 1,
+          friction: 3,
+          tension: 40,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        try {
+          // Use explicit path instead of getNextStep() which might be affected by state changes
+          if (nextPath) {
+            router.push(nextPath);
+          } else {
+            // Fallback to explicit path if getNextStep fails
+            router.push("/auth/signup-steps/photos");
+          }
+        } catch (navError) {
+          console.error("Navigation error:", navError);
+          // Fallback navigation
+          router.push("/auth/signup-steps/photos");
+        }
+      });
+    } catch (error) {
+      console.error("Error in handleNext:", error);
+      // Fallback navigation without animation
+      router.push("/auth/signup-steps/photos");
+    }
   };
 
   return (
