@@ -26,7 +26,10 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 // Configure allowed origins based on environment
 const allowedOrigins =
   NODE_ENV === "production"
-    ? ["https://yourdomain.com", "https://*.yourdomain.com"]
+    ? [
+        "https://bondfyre-production.up.railway.app",
+        "https://*.bondfyre-production.up.railway.app",
+      ]
     : [
         "http://localhost:8080",
         "http://localhost:3000",
