@@ -256,7 +256,7 @@ const createSwipes = async (users: any[]) => {
 };
 
 // Create matches
-const createMatches = async (users: any[], groups: any[]) => {
+const createMatches = async (_users: any[], groups: any[]) => {
   console.log("Creating matches...");
   const matches = [];
 
@@ -426,7 +426,7 @@ const createGroupChats = async (matches: any[], users: any[]) => {
 
 // Create messages
 const createMessages = async (
-  users: any[],
+  _users: any[],
   matches: any[],
   groupChats: any[]
 ) => {
