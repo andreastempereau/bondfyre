@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Image,
   Alert,
+  Text as RNText,
 } from "react-native";
 import { Ionicons, FontAwesome } from "@expo/vector-icons";
 import { apiService } from "../../services/apiService";
@@ -45,22 +46,40 @@ export const DoubleDateFriendSelector: React.FC<
       try {
         setLoading(true);
 
-        // Get friends and double date friends in parallel
-        const [friendsResponse, doubleDateResponse] = await Promise.all([
-          apiService.get("/friends"),
-          apiService.get("/users/double-date-friends"),
-        ]);
+        try {
+          // Get friends and double date friends in parallel
+          const [friendsResponse, doubleDateResponse] = await Promise.all([
+            apiService.get("/friends"),
+            apiService.get("/users/double-date-friends"),
+          ]);
 
-        setFriends((friendsResponse as Friend[]) || []);
-        setDoubleDateFriends((doubleDateResponse as Friend[]) || []);
+          // Safeguard against non-array responses
+          const friendsList = Array.isArray(friendsResponse)
+            ? friendsResponse
+            : [];
+          const doubleDateList = Array.isArray(doubleDateResponse)
+            ? doubleDateResponse
+            : [];
 
-        // Notify parent component of initial selection
-        if (onSelectionChange) {
-          onSelectionChange((doubleDateResponse as Friend[]) || []);
+          setFriends(friendsList);
+          setDoubleDateFriends(doubleDateList);
+
+          // Notify parent component of initial selection
+          if (onSelectionChange) {
+            onSelectionChange(doubleDateList);
+          }
+        } catch (apiError) {
+          console.error("API error fetching friends data:", apiError);
+          setError("Failed to load friends. Please try again.");
+          // Set empty arrays to prevent undefined issues
+          setFriends([]);
+          setDoubleDateFriends([]);
         }
       } catch (error) {
-        console.error("Error fetching friends data:", error);
+        console.error("Error in DoubleDateFriendSelector:", error);
         setError("Failed to load friends. Please try again.");
+        setFriends([]);
+        setDoubleDateFriends([]);
       } finally {
         setLoading(false);
       }
@@ -119,43 +138,54 @@ export const DoubleDateFriendSelector: React.FC<
 
   // Render a friend item
   const renderFriendItem = ({ item }: { item: Friend }) => {
-    const isSelected = doubleDateFriends.some((f) => f._id === item._id);
-    const defaultImage = "https://via.placeholder.com/100";
+    try {
+      if (!item || typeof item !== "object") {
+        return null; // Skip rendering if item is invalid
+      }
 
-    return (
-      <TouchableOpacity
-        style={[styles.friendItem, { backgroundColor: cardBackground }]}
-        onPress={() => toggleFriendSelection(item)}
-      >
-        <Image
-          source={{ uri: item.photos?.[0] || defaultImage }}
-          style={styles.friendAvatar}
-        />
+      const isSelected = doubleDateFriends.some((f) => f._id === item._id);
+      const defaultImage = "https://via.placeholder.com/100";
+      const displayName = item.name || "Friend";
 
-        <View style={styles.friendInfo}>
-          <Text style={[styles.friendName, { color: textColor }]}>
-            {item.name}
-          </Text>
-          {item.username && (
-            <Text style={[styles.friendUsername, { color: mutedTextColor }]}>
-              @{item.username}
-            </Text>
-          )}
-        </View>
-
-        <View
-          style={[
-            styles.selectionIndicator,
-            {
-              backgroundColor: isSelected ? primaryColor : "transparent",
-              borderColor: isSelected ? primaryColor : mutedTextColor,
-            },
-          ]}
+      return (
+        <TouchableOpacity
+          style={[styles.friendItem, { backgroundColor: cardBackground }]}
+          onPress={() => toggleFriendSelection(item)}
         >
-          {isSelected && <FontAwesome name="check" size={16} color="#fff" />}
-        </View>
-      </TouchableOpacity>
-    );
+          <Image
+            source={{ uri: item.photos?.[0] || defaultImage }}
+            style={styles.friendAvatar}
+            defaultSource={{ uri: defaultImage }}
+          />
+
+          <View style={styles.friendInfo}>
+            <Text style={[styles.friendName, { color: textColor }]}>
+              {displayName}
+            </Text>
+            {item.username && (
+              <Text style={[styles.friendUsername, { color: mutedTextColor }]}>
+                @{item.username}
+              </Text>
+            )}
+          </View>
+
+          <View
+            style={[
+              styles.selectionIndicator,
+              {
+                backgroundColor: isSelected ? primaryColor : "transparent",
+                borderColor: isSelected ? primaryColor : mutedTextColor,
+              },
+            ]}
+          >
+            {isSelected && <FontAwesome name="check" size={16} color="#fff" />}
+          </View>
+        </TouchableOpacity>
+      );
+    } catch (error) {
+      console.error("Error rendering friend item:", error);
+      return null;
+    }
   };
 
   if (loading) {

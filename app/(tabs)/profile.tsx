@@ -273,155 +273,167 @@ export default function ProfileScreen() {
 
   // Render content based on active tab
   const renderContent = () => {
-    if (activeTab === "doubleDateFriends") {
-      return <DoubleDateFriendSelector />;
-    }
+    try {
+      if (activeTab === "doubleDateFriends") {
+        return <DoubleDateFriendSelector />;
+      }
 
-    // Render regular profile content
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView style={styles.container}>
-          <View style={styles.header}>
-            <View style={styles.photoContainer}>
-              <Image
-                source={{
-                  uri: photos[0] || "https://via.placeholder.com/150",
-                }}
-                style={styles.profileImage}
-              />
-              <TouchableOpacity
-                style={styles.addPhotoButton}
-                onPress={pickImage}
-                disabled={uploadingImage}
-              >
-                {uploadingImage ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <FontAwesome name="camera" size={18} color="#fff" />
-                )}
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.name}>{user.name}</Text>
-            <Text style={styles.email}>{user.email}</Text>
-          </View>
-
-          {/* Photo Gallery Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Photos</Text>
-              <TouchableOpacity onPress={pickImage} disabled={uploadingImage}>
-                {uploadingImage ? (
-                  <ActivityIndicator size="small" color="#666" />
-                ) : (
-                  <FontAwesome name="plus" size={20} color="#666" />
-                )}
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.photoGallery}
-            >
-              {photos.length > 0 ? (
-                photos.map((photo, index) => (
-                  <View key={index} style={styles.photoWrapper}>
-                    <Image
-                      source={{ uri: photo }}
-                      style={styles.galleryImage}
-                    />
-                    <TouchableOpacity
-                      style={styles.removePhotoButton}
-                      onPress={() => removePhoto(photo, index)}
-                    >
-                      <FontAwesome name="times" size={16} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                ))
-              ) : (
+      // Render regular profile content
+      return (
+        <SafeAreaView style={styles.safeArea}>
+          <ScrollView style={styles.container}>
+            <View style={styles.header}>
+              <View style={styles.photoContainer}>
+                <Image
+                  source={{
+                    uri: photos[0] || "https://via.placeholder.com/150",
+                  }}
+                  style={styles.profileImage}
+                />
                 <TouchableOpacity
+                  style={styles.addPhotoButton}
                   onPress={pickImage}
-                  style={styles.addPhotoCard}
                   disabled={uploadingImage}
                 >
                   {uploadingImage ? (
-                    <ActivityIndicator size="large" color="#ccc" />
+                    <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <>
-                      <FontAwesome name="plus" size={24} color="#ccc" />
-                      <Text style={styles.addPhotoText}>Add Photos</Text>
-                    </>
+                    <FontAwesome name="camera" size={18} color="#fff" />
                   )}
                 </TouchableOpacity>
-              )}
-            </ScrollView>
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>About Me</Text>
-              <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
-                <FontAwesome
-                  name={isEditing ? "times" : "edit"}
-                  size={20}
-                  color="#666"
-                />
-              </TouchableOpacity>
+              </View>
+              <Text style={styles.name}>{user.name}</Text>
+              <Text style={styles.email}>{user.email}</Text>
             </View>
 
-            {isEditing ? (
-              <ProfileEditForm
-                defaultValues={defaultValues}
-                onSave={handleSave}
-                loading={loading}
+            {/* Photo Gallery Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>My Photos</Text>
+                <TouchableOpacity onPress={pickImage} disabled={uploadingImage}>
+                  {uploadingImage ? (
+                    <ActivityIndicator size="small" color="#666" />
+                  ) : (
+                    <FontAwesome name="plus" size={20} color="#666" />
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.photoGallery}
+              >
+                {photos.length > 0 ? (
+                  photos.map((photo, index) => (
+                    <View key={index} style={styles.photoWrapper}>
+                      <Image
+                        source={{ uri: photo }}
+                        style={styles.galleryImage}
+                      />
+                      <TouchableOpacity
+                        style={styles.removePhotoButton}
+                        onPress={() => removePhoto(photo, index)}
+                      >
+                        <FontAwesome name="times" size={16} color="#fff" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                ) : (
+                  <TouchableOpacity
+                    onPress={pickImage}
+                    style={styles.addPhotoCard}
+                    disabled={uploadingImage}
+                  >
+                    {uploadingImage ? (
+                      <ActivityIndicator size="large" color="#ccc" />
+                    ) : (
+                      <>
+                        <FontAwesome name="plus" size={24} color="#ccc" />
+                        <Text style={styles.addPhotoText}>Add Photos</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </ScrollView>
+            </View>
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>About Me</Text>
+                <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
+                  <FontAwesome
+                    name={isEditing ? "times" : "edit"}
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {isEditing ? (
+                <ProfileEditForm
+                  defaultValues={defaultValues}
+                  onSave={handleSave}
+                  loading={loading}
+                />
+              ) : (
+                <>
+                  {(user.bio || user.profile?.bio) && (
+                    <Text style={styles.bio}>
+                      {user.bio || user.profile?.bio}
+                    </Text>
+                  )}
+                  {(user.age || user.profile?.age) && (
+                    <Text style={styles.detail}>
+                      {user.age || user.profile?.age} years old
+                    </Text>
+                  )}
+                  {(user.gender || user.profile?.gender) && (
+                    <Text style={styles.detail}>
+                      {user.gender || user.profile?.gender}
+                    </Text>
+                  )}
+                  {user.phoneNumber && (
+                    <Text style={styles.detail}>
+                      <FontAwesome name="phone" size={14} color="#666" />{" "}
+                      {user.phoneNumber}
+                    </Text>
+                  )}
+                </>
+              )}
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Interests</Text>
+              <InterestTags
+                interests={user.interests || user.profile?.interests || []}
               />
-            ) : (
-              <>
-                {(user.bio || user.profile?.bio) && (
-                  <Text style={styles.bio}>
-                    {user.bio || user.profile?.bio}
-                  </Text>
-                )}
-                {(user.age || user.profile?.age) && (
-                  <Text style={styles.detail}>
-                    {user.age || user.profile?.age} years old
-                  </Text>
-                )}
-                {(user.gender || user.profile?.gender) && (
-                  <Text style={styles.detail}>
-                    {user.gender || user.profile?.gender}
-                  </Text>
-                )}
-                {user.phoneNumber && (
-                  <Text style={styles.detail}>
-                    <FontAwesome name="phone" size={14} color="#666" />{" "}
-                    {user.phoneNumber}
-                  </Text>
-                )}
-              </>
-            )}
-          </View>
+            </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Interests</Text>
-            <InterestTags
-              interests={user.interests || user.profile?.interests || []}
-            />
-          </View>
-
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <FontAwesome name="sign-out" size={20} color="#FF6B6B" />
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    );
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={handleLogout}
+            >
+              <FontAwesome name="sign-out" size={20} color="#FF6B6B" />
+              <Text style={styles.logoutButtonText}>Logout</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      );
+    } catch (error) {
+      console.error("Error rendering profile content:", error);
+      return (
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <Text>Something went wrong. Please try again.</Text>
+        </View>
+      );
+    }
   };
 
   return (
     <ThemedView style={styles.container}>
-      {/* ... existing header ... */}
-
       {/* Tabs */}
       {renderTabs()}
 
