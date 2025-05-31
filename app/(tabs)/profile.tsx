@@ -12,10 +12,11 @@ import {
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useAuth } from "../../src/contexts/AuthContext";
+import { useAuth, User } from "../../src/contexts/AuthContext";
 import { apiService } from "../../src/services/apiService";
 import { uploadImage, deleteImage } from "../../src/services/storageService";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from 'expo-file-system';
 import ThemedView from "../../src/components/layout/ThemedView";
 import { useThemeColor } from "../../src/hooks/useThemeColor";
 
@@ -33,6 +34,56 @@ import { DoubleDateFriendSelector } from "../../src/components/features/DoubleDa
 // Constants for image optimization
 const IMAGE_QUALITY = Platform.OS === 'ios' ? 0.3 : 0.5;
 const MAX_IMAGE_DIMENSION = 400;
+const CACHE_DIRECTORY = FileSystem.cacheDirectory + 'images/';
+
+// Ensure cache directory exists
+const ensureCacheDirectory = async () => {
+  try {
+    const dirInfo = await FileSystem.getInfoAsync(CACHE_DIRECTORY);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(CACHE_DIRECTORY, { intermediates: true });
+    }
+  } catch (error) {
+    console.error('Error creating cache directory:', error);
+  }
+};
+
+// Cache image locally
+const cacheImage = async (uri: string): Promise<string> => {
+  try {
+    await ensureCacheDirectory();
+    const filename = uri.split('/').pop() || 'image.jpg';
+    const localUri = CACHE_DIRECTORY + filename;
+    
+    const fileInfo = await FileSystem.getInfoAsync(localUri);
+    if (fileInfo.exists) {
+      return localUri;
+    }
+
+    await FileSystem.downloadAsync(uri, localUri);
+    return localUri;
+  } catch (error) {
+    console.error('Error caching image:', error);
+    return uri; // Return original URI if caching fails
+  }
+};
+
+// Add retry logic for API calls
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+
+const retryOperation = async (operation: () => Promise<any>, retries = MAX_RETRIES): Promise<any> => {
+  try {
+    return await operation();
+  } catch (error) {
+    if (retries > 0) {
+      console.log(`Operation failed, retrying... (${retries} attempts left)`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      return retryOperation(operation, retries - 1);
+    }
+    throw error;
+  }
+};
 
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
@@ -40,6 +91,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [cachedPhotos, setCachedPhotos] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("profile"); // 'profile' or 'doubleDateFriends'
   const [error, setError] = useState<string | null>(null);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
@@ -49,37 +101,70 @@ export default function ProfileScreen() {
   const primaryColor = useThemeColor({}, "primary");
   const mutedTextColor = useThemeColor({}, "mutedText");
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        if (user) {
-          const userPhotos = user.photos || user.profile?.photos || [];
-          // Only take the first photo and ensure it's a valid URL
-          const firstPhoto = Array.isArray(userPhotos) ? userPhotos[0] : null;
-          if (firstPhoto && typeof firstPhoto === 'string' && firstPhoto.startsWith('http')) {
-            setPhotos([firstPhoto]);
-          } else {
-            setPhotos([]);
-          }
-        }
-      } catch (err) {
-        console.error("Error loading user data:", err);
-        setError("Failed to load user data");
-      } finally {
-        setLoading(false);
+  // Define loadUserData at the top level of the component
+  const loadUserData = async () => {
+    try {
+      console.log('Starting to load user data');
+      if (!user?._id) {
+        console.log('No user ID found');
+        setError('User data not found. Please log in again.');
+        return;
       }
-    };
 
+      try {
+        // First try to get the latest user data
+        const userData = await apiService.get<User>(`/users/${user._id}`);
+        console.log('User data fetched successfully');
+
+        // Update local user data with fresh data from server
+        if (userData) {
+          await updateUser(userData);
+        }
+
+        // Handle photos
+        const userPhotos = userData?.photos || user?.photos || user?.profile?.photos || [];
+        const firstPhoto = Array.isArray(userPhotos) ? userPhotos[0] : null;
+        
+        if (firstPhoto && typeof firstPhoto === 'string' && firstPhoto.startsWith('http')) {
+          console.log('Valid photo URL found');
+          setPhotos([firstPhoto]);
+        } else {
+          console.log('No valid photo URL, using default');
+          setPhotos([]);
+        }
+      } catch (error: any) {
+        console.error('Error fetching user data:', error);
+        // If we can't fetch fresh data, use local data
+        const localPhotos = user?.photos || user?.profile?.photos || [];
+        const firstPhoto = Array.isArray(localPhotos) ? localPhotos[0] : null;
+        
+        if (firstPhoto && typeof firstPhoto === 'string' && firstPhoto.startsWith('http')) {
+          setPhotos([firstPhoto]);
+        } else {
+          setPhotos([]);
+        }
+      }
+    } catch (err) {
+      console.error("Error in profile loading:", err);
+      setError("Failed to load profile data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadUserData();
   }, [user]);
 
   // If user is not authenticated, show sign in/sign up page
   if (!user) {
+    console.log('No user, showing auth screen');
     return <AuthScreen />;
   }
 
   // Show loading state
   if (loading) {
+    console.log('Loading state active');
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -91,6 +176,7 @@ export default function ProfileScreen() {
 
   // Show error state
   if (error) {
+    console.log('Error state active:', error);
     return (
       <ThemedView style={styles.container}>
         <View style={styles.errorContainer}>
@@ -100,9 +186,16 @@ export default function ProfileScreen() {
             onPress={() => {
               setError(null);
               setLoading(true);
+              loadUserData();
             }}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.retryButton, { marginTop: 10 }]}
+            onPress={signOut}
+          >
+            <Text style={styles.retryButtonText}>Sign Out</Text>
           </TouchableOpacity>
         </View>
       </ThemedView>
@@ -120,9 +213,11 @@ export default function ProfileScreen() {
 
   const pickImage = async () => {
     try {
+      console.log('Starting image picker');
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== "granted") {
+        console.log('Permission denied');
         Alert.alert(
           "Permission required",
           "Please allow access to your photo library to upload photos."
@@ -130,6 +225,7 @@ export default function ProfileScreen() {
         return;
       }
 
+      console.log('Launching image picker');
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: "images",
         allowsEditing: true,
@@ -141,38 +237,55 @@ export default function ProfileScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         try {
+          console.log('Image selected, starting upload');
           setUploadingImage(true);
           setIsImageLoaded(false);
 
-          const { url, error } = await uploadImage(
-            result.assets[0].uri,
-            user?._id || ""
-          );
+          // Use retry logic for the upload
+          const { url, error } = await retryOperation(async () => {
+            return await uploadImage(result.assets[0].uri, user?._id || "");
+          });
 
           if (error) {
             console.error("Error uploading to Supabase:", error);
-            Alert.alert("Upload Error", "Failed to upload image to storage.");
+            Alert.alert(
+              "Upload Error", 
+              "Failed to upload image. Please check your internet connection and try again."
+            );
             return;
           }
 
           if (!url) {
-            Alert.alert("Upload Error", "Failed to get a valid URL from storage.");
+            console.error("No URL returned from upload");
+            Alert.alert(
+              "Upload Error", 
+              "Failed to get a valid URL from storage. Please try again."
+            );
             return;
           }
 
-          // Only keep one photo
+          console.log('Upload successful, updating state');
           setPhotos([url]);
 
-          await apiService.put(`/users/profile`, { photos: [url] });
-          await updateUser({ photos: [url] });
+          // Use retry logic for the profile update
+          await retryOperation(async () => {
+            await apiService.put(`/users/profile`, { photos: [url] });
+            await updateUser({ photos: [url] });
+          });
+
           Alert.alert("Success", "Photo uploaded successfully");
         } catch (error: any) {
-          Alert.alert("Error", error.message || "Failed to update profile photo");
+          console.error("Error in upload process:", error);
+          Alert.alert(
+            "Error", 
+            "Failed to update profile photo. Please check your internet connection and try again."
+          );
         } finally {
           setUploadingImage(false);
         }
       }
     } catch (error) {
+      console.error("Error in image picker:", error);
       setUploadingImage(false);
       Alert.alert("Error", "Failed to select image");
     }
@@ -210,6 +323,7 @@ export default function ProfileScreen() {
 
       // Remove photo
       setPhotos([]);
+      setCachedPhotos([]);
 
       // Update on server
       await apiService.put(`/users/profile`, { photos: [] });
@@ -234,13 +348,20 @@ export default function ProfileScreen() {
         phoneNumber: data.phoneNumber,
       };
 
-      await apiService.put(`/users/profile`, updatedUserData);
-      await updateUser(updatedUserData);
+      // Use retry logic for the update
+      await retryOperation(async () => {
+        await apiService.put(`/users/profile`, updatedUserData);
+        await updateUser(updatedUserData);
+      });
 
       setIsEditing(false);
       Alert.alert("Success", "Profile updated successfully");
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to update profile");
+      console.error('Error updating profile:', error);
+      Alert.alert(
+        "Error", 
+        "Failed to update profile. Please check your internet connection and try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -308,6 +429,7 @@ export default function ProfileScreen() {
   // Render content based on active tab
   const renderContent = () => {
     try {
+      console.log('Rendering content, active tab:', activeTab);
       if (activeTab === "doubleDateFriends") {
         return <DoubleDateFriendSelector />;
       }
@@ -317,6 +439,7 @@ export default function ProfileScreen() {
           <ScrollView 
             style={styles.container}
             removeClippedSubviews={true}
+            onLayout={() => console.log('ScrollView layout complete')}
           >
             <View style={styles.header}>
               <View style={styles.photoContainer}>
@@ -327,16 +450,22 @@ export default function ProfileScreen() {
                 )}
                 <Image
                   source={
-                    photos[0]
-                      ? { uri: photos[0] }
+                    cachedPhotos[0]
+                      ? { uri: cachedPhotos[0] }
                       : require("../../assets/images/default-avatar.jpg")
                   }
                   style={[
                     styles.profileImage,
                     !isImageLoaded && { opacity: 0 }
                   ]}
-                  onLoadStart={() => setIsImageLoaded(false)}
-                  onLoadEnd={() => setIsImageLoaded(true)}
+                  onLoadStart={() => {
+                    console.log('Image load started');
+                    setIsImageLoaded(false);
+                  }}
+                  onLoadEnd={() => {
+                    console.log('Image load completed');
+                    setIsImageLoaded(true);
+                  }}
                   onError={(e) => {
                     console.error("Error loading profile image:", e.nativeEvent.error);
                     setIsImageLoaded(true);
