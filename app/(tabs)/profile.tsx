@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -29,13 +30,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import InterestTags from "../../src/components/profile/InterestTags";
 import { DoubleDateFriendSelector } from "../../src/components/features/DoubleDateFriendSelector";
 
+// Constants for image optimization
+const IMAGE_QUALITY = Platform.OS === 'ios' ? 0.3 : 0.5;
+const MAX_IMAGE_DIMENSION = 400;
+
 export default function ProfileScreen() {
   const { user, signOut, updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("profile"); // 'profile' or 'doubleDateFriends'
+  const [error, setError] = useState<string | null>(null);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
 
   // Theme colors
   const cardBackground = useThemeColor({}, "card");
@@ -43,12 +50,27 @@ export default function ProfileScreen() {
   const mutedTextColor = useThemeColor({}, "mutedText");
 
   useEffect(() => {
-    // Initialize photos from user data
-    if (user) {
-      // Check both possible locations for photos
-      const userPhotos = user.photos || user.profile?.photos || [];
-      setPhotos(userPhotos);
-    }
+    const loadUserData = async () => {
+      try {
+        if (user) {
+          const userPhotos = user.photos || user.profile?.photos || [];
+          // Only take the first photo and ensure it's a valid URL
+          const firstPhoto = Array.isArray(userPhotos) ? userPhotos[0] : null;
+          if (firstPhoto && typeof firstPhoto === 'string' && firstPhoto.startsWith('http')) {
+            setPhotos([firstPhoto]);
+          } else {
+            setPhotos([]);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading user data:", err);
+        setError("Failed to load user data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserData();
   }, [user]);
 
   // If user is not authenticated, show sign in/sign up page
@@ -56,21 +78,49 @@ export default function ProfileScreen() {
     return <AuthScreen />;
   }
 
-  // Create default values for the form using both possible structures
+  // Show loading state
+  if (loading) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={primaryColor} />
+        </View>
+      </ThemedView>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setError(null);
+              setLoading(true);
+            }}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  // Create default values for the form
   const defaultValues: ProfileEditValues = {
-    name: user.name || "",
-    bio: user.bio || user.profile?.bio || "",
-    age: (user.age || user.profile?.age || "").toString(),
-    gender: user.gender || user.profile?.gender || "",
-    interests: (user.interests || user.profile?.interests || []).join(", "),
-    phoneNumber: user.phoneNumber || "",
+    name: user?.name || "",
+    bio: user?.bio || user?.profile?.bio || "",
+    age: (user?.age || user?.profile?.age || "").toString(),
+    gender: user?.gender || user?.profile?.gender || "",
+    phoneNumber: user?.phoneNumber || "",
   };
 
   const pickImage = async () => {
     try {
-      // Request permission
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (status !== "granted") {
         Alert.alert(
@@ -80,22 +130,23 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Launch image picker
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: "images",
         allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
+        aspect: [1, 1],
+        quality: IMAGE_QUALITY,
+        allowsMultipleSelection: false,
+        exif: false,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         try {
           setUploadingImage(true);
+          setIsImageLoaded(false);
 
-          // Upload image to Supabase storage
           const { url, error } = await uploadImage(
             result.assets[0].uri,
-            user._id
+            user?._id || ""
           );
 
           if (error) {
@@ -105,25 +156,18 @@ export default function ProfileScreen() {
           }
 
           if (!url) {
-            Alert.alert(
-              "Upload Error",
-              "Failed to get a valid URL from storage."
-            );
+            Alert.alert("Upload Error", "Failed to get a valid URL from storage.");
             return;
           }
 
-          const newPhotos = [...photos, url];
-          setPhotos(newPhotos);
+          // Only keep one photo
+          setPhotos([url]);
 
-          // Save the updated photo URL to the server
-          await apiService.put(`/users/profile`, { photos: newPhotos });
-          await updateUser({ photos: newPhotos });
+          await apiService.put(`/users/profile`, { photos: [url] });
+          await updateUser({ photos: [url] });
           Alert.alert("Success", "Photo uploaded successfully");
         } catch (error: any) {
-          Alert.alert(
-            "Error",
-            error.message || "Failed to update profile photo"
-          );
+          Alert.alert("Error", error.message || "Failed to update profile photo");
         } finally {
           setUploadingImage(false);
         }
@@ -134,12 +178,12 @@ export default function ProfileScreen() {
     }
   };
 
-  const removePhoto = async (photoUrl: string, index: number) => {
+  const removePhoto = async () => {
     try {
       const confirmed = await new Promise((resolve) => {
         Alert.alert(
           "Remove Photo",
-          "Are you sure you want to remove this photo?",
+          "Are you sure you want to remove your profile photo?",
           [
             { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
             {
@@ -156,22 +200,20 @@ export default function ProfileScreen() {
       setUploadingImage(true);
 
       // Delete from Supabase storage if it's a Supabase URL
-      if (photoUrl.includes("supabase")) {
-        const { error } = await deleteImage(photoUrl);
+      if (photos[0]?.includes("supabase")) {
+        const { error } = await deleteImage(photos[0]);
         if (error) {
           console.warn("Error deleting from storage:", error);
           // Continue anyway to remove from profile
         }
       }
 
-      // Remove from local state
-      const newPhotos = [...photos];
-      newPhotos.splice(index, 1);
-      setPhotos(newPhotos);
+      // Remove photo
+      setPhotos([]);
 
       // Update on server
-      await apiService.put(`/users/profile`, { photos: newPhotos });
-      await updateUser({ photos: newPhotos });
+      await apiService.put(`/users/profile`, { photos: [] });
+      await updateUser({ photos: [] });
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to remove photo");
     } finally {
@@ -182,20 +224,12 @@ export default function ProfileScreen() {
   const handleSave = async (data: ProfileEditValues) => {
     try {
       setLoading(true);
-      const interestsArray = data.interests
-        ? data.interests
-            .split(",")
-            .map((interest) => interest.trim())
-            .filter((interest) => interest.length > 0)
-        : [];
 
-      // Create updated user data based on backend structure (not nested profile)
       const updatedUserData = {
         name: data.name,
         bio: data.bio,
         age: parseInt(data.age) || 0,
         gender: data.gender,
-        interests: interestsArray,
         photos: photos,
         phoneNumber: data.phoneNumber,
       };
@@ -278,84 +312,57 @@ export default function ProfileScreen() {
         return <DoubleDateFriendSelector />;
       }
 
-      // Render regular profile content
       return (
         <SafeAreaView style={styles.safeArea}>
-          <ScrollView style={styles.container}>
+          <ScrollView 
+            style={styles.container}
+            removeClippedSubviews={true}
+          >
             <View style={styles.header}>
               <View style={styles.photoContainer}>
+                {!isImageLoaded && (
+                  <View style={[styles.profileImage, styles.imagePlaceholder]}>
+                    <ActivityIndicator size="large" color={primaryColor} />
+                  </View>
+                )}
                 <Image
-                  source={{
-                    uri: photos[0] || "https://via.placeholder.com/150",
+                  source={
+                    photos[0]
+                      ? { uri: photos[0] }
+                      : require("../../assets/images/default-avatar.jpg")
+                  }
+                  style={[
+                    styles.profileImage,
+                    !isImageLoaded && { opacity: 0 }
+                  ]}
+                  onLoadStart={() => setIsImageLoaded(false)}
+                  onLoadEnd={() => setIsImageLoaded(true)}
+                  onError={(e) => {
+                    console.error("Error loading profile image:", e.nativeEvent.error);
+                    setIsImageLoaded(true);
+                    e.currentTarget.setNativeProps({
+                      source: require("../../assets/images/default-avatar.jpg"),
+                    });
                   }}
-                  style={styles.profileImage}
                 />
                 <TouchableOpacity
                   style={styles.addPhotoButton}
-                  onPress={pickImage}
+                  onPress={photos.length > 0 ? removePhoto : pickImage}
                   disabled={uploadingImage}
                 >
                   {uploadingImage ? (
                     <ActivityIndicator size="small" color="#fff" />
                   ) : (
-                    <FontAwesome name="camera" size={18} color="#fff" />
+                    <FontAwesome 
+                      name={photos.length > 0 ? "trash" : "camera"} 
+                      size={18} 
+                      color="#fff" 
+                    />
                   )}
                 </TouchableOpacity>
               </View>
-              <Text style={styles.name}>{user.name}</Text>
-              <Text style={styles.email}>{user.email}</Text>
-            </View>
-
-            {/* Photo Gallery Section */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>My Photos</Text>
-                <TouchableOpacity onPress={pickImage} disabled={uploadingImage}>
-                  {uploadingImage ? (
-                    <ActivityIndicator size="small" color="#666" />
-                  ) : (
-                    <FontAwesome name="plus" size={20} color="#666" />
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.photoGallery}
-              >
-                {photos.length > 0 ? (
-                  photos.map((photo, index) => (
-                    <View key={index} style={styles.photoWrapper}>
-                      <Image
-                        source={{ uri: photo }}
-                        style={styles.galleryImage}
-                      />
-                      <TouchableOpacity
-                        style={styles.removePhotoButton}
-                        onPress={() => removePhoto(photo, index)}
-                      >
-                        <FontAwesome name="times" size={16} color="#fff" />
-                      </TouchableOpacity>
-                    </View>
-                  ))
-                ) : (
-                  <TouchableOpacity
-                    onPress={pickImage}
-                    style={styles.addPhotoCard}
-                    disabled={uploadingImage}
-                  >
-                    {uploadingImage ? (
-                      <ActivityIndicator size="large" color="#ccc" />
-                    ) : (
-                      <>
-                        <FontAwesome name="plus" size={24} color="#ccc" />
-                        <Text style={styles.addPhotoText}>Add Photos</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
+              <Text style={styles.name}>{user?.name || "No Name"}</Text>
+              <Text style={styles.email}>{user?.email || "No Email"}</Text>
             </View>
 
             <View style={styles.section}>
@@ -378,36 +385,29 @@ export default function ProfileScreen() {
                 />
               ) : (
                 <>
-                  {(user.bio || user.profile?.bio) && (
+                  {(user?.bio || user?.profile?.bio) && (
                     <Text style={styles.bio}>
-                      {user.bio || user.profile?.bio}
+                      {user?.bio || user?.profile?.bio}
                     </Text>
                   )}
-                  {(user.age || user.profile?.age) && (
+                  {(user?.age || user?.profile?.age) && (
                     <Text style={styles.detail}>
-                      {user.age || user.profile?.age} years old
+                      {user?.age || user?.profile?.age} years old
                     </Text>
                   )}
-                  {(user.gender || user.profile?.gender) && (
+                  {(user?.gender || user?.profile?.gender) && (
                     <Text style={styles.detail}>
-                      {user.gender || user.profile?.gender}
+                      {user?.gender || user?.profile?.gender}
                     </Text>
                   )}
-                  {user.phoneNumber && (
+                  {user?.phoneNumber && (
                     <Text style={styles.detail}>
                       <FontAwesome name="phone" size={14} color="#666" />{" "}
-                      {user.phoneNumber}
+                      {user?.phoneNumber}
                     </Text>
                   )}
                 </>
               )}
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Interests</Text>
-              <InterestTags
-                interests={user.interests || user.profile?.interests || []}
-              />
             </View>
 
             <TouchableOpacity
@@ -423,10 +423,17 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error("Error rendering profile content:", error);
       return (
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
-          <Text>Something went wrong. Please try again.</Text>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Something went wrong. Please try again.</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setError(null);
+              setLoading(true);
+            }}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -490,45 +497,6 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 10,
   },
-  photoGallery: {
-    flexDirection: "row",
-    marginVertical: 10,
-  },
-  photoWrapper: {
-    position: "relative",
-    marginRight: 10,
-  },
-  galleryImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-  },
-  removePhotoButton: {
-    position: "absolute",
-    top: 5,
-    right: 5,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addPhotoCard: {
-    width: 100,
-    height: 100,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  addPhotoText: {
-    color: "#999",
-    marginTop: 5,
-    fontSize: 12,
-  },
   section: {
     padding: 20,
     borderBottomWidth: 1,
@@ -587,5 +555,38 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 16,
     fontWeight: "500",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#FF6B6B",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  retryButton: {
+    padding: 10,
+    backgroundColor: "#4A80F0",
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePlaceholder: {
+    position: 'absolute',
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
