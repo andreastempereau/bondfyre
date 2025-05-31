@@ -275,3 +275,30 @@ export const removeDoubleDateFriend = async (
     res.status(500).json({ message: error.message });
   }
 };
+
+export const getUserById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?._id) {
+      res.status(401).json({ message: "User not authenticated" });
+      return;
+    }
+
+    const { id } = req.params;
+    const user = await User.findById(id)
+      .select("-password")
+      .populate("friends", "name photos")
+      .populate("doubleDateFriends", "name photos");
+
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.json(user);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+};

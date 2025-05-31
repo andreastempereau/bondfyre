@@ -6,6 +6,7 @@ import {
   getUserProfile,
   removeDoubleDateFriend,
   updateUserProfile,
+  getUserById,
 } from "../controllers";
 
 const router = express.Router();
@@ -15,6 +16,7 @@ router.use(auth);
 
 router.get("/profile", getUserProfile);
 router.put("/profile", updateUserProfile);
+router.get("/:id", getUserById);
 
 // Double date friends routes
 router.get("/double-date-friends", getDoubleDateFriends);
