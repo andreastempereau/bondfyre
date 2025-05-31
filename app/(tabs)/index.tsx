@@ -21,7 +21,7 @@ export default function HomeScreen() {
     return <AuthScreen />;
   }
 
-  // If user is authenticated, redirect to discover tab
+  // If user is authenticated, show the discover screen
   return <Redirect href="/discover" />;
 }
 

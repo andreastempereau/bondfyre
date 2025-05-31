@@ -30,6 +30,11 @@ export interface User {
   profile?: Profile; // Keep for backward compatibility
 }
 
+interface AuthResponse {
+  token: string;
+  user: User;
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -102,25 +107,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  // Add effect to navigate based on auth state
-  useEffect(() => {
-    if (!loading) {
-      try {
-        if (token && user) {
-          // User is authenticated, navigate to main app if not already there
-          router.replace("/(tabs)");
-        } else {
-          // User is not authenticated
-          router.replace("/auth");
-        }
-      } catch (error) {
-        console.error("Navigation error:", error);
-        // Fallback to authentication screen if navigation fails
-        router.replace("/auth");
-      }
-    }
-  }, [token, user, loading]);
-
   const loadStoredData = async () => {
     try {
       const storedToken = await AsyncStorage.getItem(
@@ -169,20 +155,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log("Attempting to sign in with email:", email);
-      const response = await apiService.post<{ token: string; user: User }>(
-        "/auth/login",
-        { email, password }
+      const response = await apiService.post<AuthResponse>("/auth/login", {
+        email,
+        password,
+      });
+
+      const { token, user } = response;
+      await AsyncStorage.setItem(Config.STORAGE_KEYS.AUTH_TOKEN, token);
+      await AsyncStorage.setItem(
+        Config.STORAGE_KEYS.USER_DATA,
+        JSON.stringify(user)
       );
 
-      console.log("Sign in successful, saving auth data");
-
-      // Normalize the user data structure
-      const normalizedUser = normalizeUserData(response.user);
-
-      await saveAuthData(response.token, normalizedUser);
+      setToken(token);
+      setUser(user);
+      
+      // Navigate to main app after successful login
+      router.replace("/(tabs)");
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Sign in error:", error);
       throw new Error(error.message || "Failed to sign in");
     }
   };
@@ -291,6 +282,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(null);
       setUser(null);
       console.log("User signed out");
+      
+      // Navigate to auth screen after logout
+      router.replace("/auth");
     } catch (error) {
       console.error("Sign out error:", error);
     }
